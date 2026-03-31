@@ -1,0 +1,445 @@
+:root {
+    --primary: #c19a6b;
+    --primary-dark: #8b6b4a;
+    --background: #0a0a0a;
+    --glass: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --text: #ffffff;
+    --accent: #fcd34d;
+    --danger: #ef4444;
+    --success: #22c55e;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Outfit', sans-serif;
+}
+
+body {
+    background-color: var(--background);
+    background-image: url('assets/background.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+#game-container {
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+.glass {
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.modal {
+    padding: 3rem;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 500px;
+}
+
+.modal h1 {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(to right, #fcd34d, #f59e0b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
+.btn {
+    padding: 1rem 2rem;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    margin: 0.5rem;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    background: #fbbf24;
+}
+
+#game-board {
+    display: flex;
+    height: 100%;
+}
+
+.sidebar {
+    width: 250px;
+    margin: 20px;
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.score-board h2 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.score-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.round-indicator {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.game-log {
+    flex-grow: 1;
+    border-radius: 15px;
+    padding: 15px;
+    font-size: 0.85rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.settings {
+    padding: 15px;
+    border-radius: 15px;
+    font-size: 0.9rem;
+}
+
+.settings h3 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    width: 100%;
+    margin: 10px 0 0 0;
+}
+
+.game-log p {
+    margin-bottom: 5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 5px;
+}
+
+.main-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 40px;
+    position: relative;
+}
+
+.opponent-hand, .player-hand {
+    display: flex;
+    justify-content: center;
+    gap: -30px; /* Overlap effect */
+    min-height: 150px;
+}
+
+.player-hand {
+    padding-bottom: 20px;
+}
+
+.center-pile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+}
+
+.draw-pile, .discard-pile {
+    position: relative;
+}
+
+.draw-count {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 600;
+    background: var(--glass);
+    padding: 2px 10px;
+    border-radius: 10px;
+}
+
+/* Card Styling */
+.card {
+    width: 100px;
+    height: 150px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.3s, margin 0.3s, box-shadow 0.3s;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.player-hand .card:not(:last-child) {
+    margin-right: -40px;
+}
+
+.opponent-hand .card:not(:last-child) {
+    margin-right: -60px;
+}
+
+.player-hand .card:hover {
+    transform: translateY(-30px);
+    z-index: 10;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+}
+
+.card.dragging {
+    opacity: 0.5;
+    transform: scale(0.9) translateY(-10px);
+    z-index: 100;
+}
+
+.card.drag-over {
+    border: 2px dashed var(--accent);
+    transform: scale(1.05);
+}
+
+.card.card-back {
+    background-image: url('assets/card-back.png');
+    background-size: cover;
+    background-position: center;
+}
+
+.card.playable {
+    box-shadow: 0 0 15px 5px var(--accent);
+}
+
+.card.selected {
+    border: 3px solid var(--accent);
+    transform: translateY(-20px);
+    z-index: 10;
+}
+
+.card.face-up {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 10px;
+    color: #000;
+}
+
+.card.red { color: #d63031; }
+.card.black { color: #2d3436; }
+
+.card-top {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+}
+
+.card-rank { font-size: 1.2rem; font-weight: 800; }
+.card-suit { font-size: 1.2rem; }
+
+.card-center {
+    font-size: 3rem;
+    align-self: center;
+}
+
+.card-bottom {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+    transform: rotate(180deg);
+}
+
+/* Suit Selector */
+.suit-selector {
+    position: absolute;
+    bottom: 200px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 20px;
+    border-radius: 20px;
+    text-align: center;
+    z-index: 50;
+}
+
+.suit-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.suit-buttons button {
+    font-size: 2rem;
+    background: white;
+    border: none;
+    border-radius: 10px;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.suit-buttons button:hover {
+    transform: scale(1.1);
+}
+
+/* Animations */
+@keyframes deal {
+    from {
+        transform: translate(-500px, -500px) rotate(0deg);
+        opacity: 0;
+    }
+    to {
+        transform: translate(0, 0) rotate(var(--rot));
+        opacity: 1;
+    }
+}
+
+.dealing {
+    animation: deal 0.5s ease-out backwards;
+}
+
+/* Mobile Responsiveness */
+@media screen and (max-width: 768px) {
+    body {
+        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    #game-board {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: calc(100% - 40px);
+        margin: 10px 20px;
+        order: 2; /* Sidebar after main area for better mobile flow */
+        padding: 15px;
+    }
+
+    .sidebar h2 {
+        font-size: 1rem;
+    }
+
+    .score-row {
+        font-size: 1.1rem;
+    }
+
+    .game-log {
+        height: 120px;
+        flex-grow: 0;
+    }
+
+    .main-area {
+        padding: 20px 10px;
+        min-height: 80vh;
+    }
+
+    /* Smaller cards for mobile */
+    .card {
+        width: 70px;
+        height: 105px;
+        border-radius: 6px;
+    }
+
+    .player-hand .card:not(:last-child) {
+        margin-right: -30px;
+    }
+
+    .opponent-hand .card:not(:last-child) {
+        margin-right: -45px;
+    }
+
+    .card-rank, .card-suit {
+        font-size: 0.9rem;
+    }
+
+    .card-center {
+        font-size: 2rem;
+    }
+
+    .draw-count {
+        bottom: -25px;
+        font-size: 0.8rem;
+    }
+
+    .center-pile {
+        gap: 20px;
+        margin: 20px 0;
+    }
+
+    .suit-selector {
+        bottom: 120px;
+        width: 90%;
+        padding: 10px;
+    }
+
+    .suit-buttons button {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+
+    .modal {
+        padding: 1.5rem;
+        width: 90%;
+    }
+
+    .modal h1 {
+        font-size: 2.5rem;
+    }
+}

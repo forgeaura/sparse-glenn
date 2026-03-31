@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Switch Card Game</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Removed initial overlay for persistent tournament -->
+
+        <div id="game-board">
+            <div class="sidebar left glass">
+                <div class="score-board">
+                    <h2>Tournament Score</h2>
+                    <div class="score-row">
+                        <span>You:</span>
+                        <span id="player-total-score">0</span>
+                    </div>
+                    <div class="score-row">
+                        <span>Computer:</span>
+                        <span id="computer-total-score">0</span>
+                    </div>
+                    <div class="round-indicator">
+                        Round <span id="current-round">1</span>
+                    </div>
+                </div>
+                <div class="settings glass">
+                    <h3>Settings</h3>
+                    <div class="setting-row">
+                        <label for="highlight-toggle">Highlight Playable</label>
+                        <input type="checkbox" id="highlight-toggle" checked onchange="toggleHighlight(this.checked)">
+                    </div>
+                    <button class="btn btn-small" onclick="resetTournament()">Reset Tournament</button>
+                </div>
+                <div class="game-log glass" id="game-log">
+                    <p>Game started!</p>
+                </div>
+            </div>
+
+            <div class="main-area">
+                <div class="opponent-hand" id="computer-hand">
+                    <!-- Computer cards here -->
+                </div>
+
+                <div class="center-pile">
+                    <div class="draw-pile" id="draw-pile">
+                        <div class="card card-back"></div>
+                        <div class="draw-count" id="draw-count">40</div>
+                    </div>
+                    <div class="discard-pile" id="discard-pile">
+                        <!-- Top card here -->
+                    </div>
+                </div>
+
+                <div class="player-area">
+                    <div class="suit-selector glass hidden" id="suit-selector">
+                        <p>Select a Suit</p>
+                        <div class="suit-buttons">
+                            <button onclick="selectSuit('hearts')">♥</button>
+                            <button onclick="selectSuit('diamonds')">♦</button>
+                            <button onclick="selectSuit('clubs')">♣</button>
+                            <button onclick="selectSuit('spades')">♠</button>
+                        </div>
+                    </div>
+                    <div class="player-hand" id="player-hand">
+                        <!-- Player cards here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="round-end-overlay" class="overlay hidden">
+            <div class="modal glass">
+                <h2 id="round-result-title">Round End</h2>
+                <div id="round-scores">
+                    <!-- Round scores here -->
+                </div>
+                <button class="btn" id="next-round-btn">Next Round</button>
+            </div>
+        </div>
+
+        <div id="game-end-overlay" class="overlay hidden">
+            <div class="modal glass">
+                <h1 id="game-winner">Game Over</h1>
+                <div id="final-scores"></div>
+                <button class="btn" onclick="location.reload()">Play Again</button>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
