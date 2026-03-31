@@ -21,6 +21,51 @@ class Card {
         return symbols[this.suit] || '';
     }
 
+    getFaceSVG(rank) {
+        const svgStart = `<svg class="card-face-svg" viewBox="0 0 100 100">`;
+        const svgEnd = `</svg>`;
+        
+        let paths = '';
+        if (rank === 'K') {
+            // King: Crown + Beard + Shoulders
+            paths = `
+                <path d="M30 30 L70 30 L70 70 L30 70 Z" fill="none" /> <!-- Shoulder/Body -->
+                <path d="M35 30 L40 10 L50 20 L60 10 L65 30" /> <!-- Crown -->
+                <circle cx="50" cy="45" r="8" /> <!-- Face -->
+                <path d="M42 55 Q50 65 58 55" /> <!-- Beard -->
+                <path d="M45 42 A1 1 0 0 1 45 44 M55 42 A1 1 0 0 1 55 44" stroke-width="3" /> <!-- Eyes -->
+            `;
+        } else if (rank === 'Q') {
+            // Queen: Tiara + Hair + Cape
+            paths = `
+                <path d="M30 40 L50 20 L70 40 L60 80 L40 80 Z" fill="none" /> <!-- Body -->
+                <path d="M40 30 L45 15 L55 15 L60 30" /> <!-- Tiara -->
+                <circle cx="50" cy="45" r="8" /> <!-- Face -->
+                <path d="M40 45 Q35 55 40 65 M60 45 Q65 55 60 65" /> <!-- Hair -->
+                <path d="M48 55 Q50 58 52 55" /> <!-- Smile -->
+            `;
+        } else if (rank === 'J') {
+            // Jack: Cap + Simple Face + Spear/Scepter
+            paths = `
+                <path d="M30 70 L40 40 L60 40 L70 70" /> <!-- Body -->
+                <path d="M35 40 Q50 25 65 40" /> <!-- Cap -->
+                <circle cx="50" cy="48" r="7" /> <!-- Face -->
+                <path d="M75 20 L75 80 M70 25 L80 25" /> <!-- Scepter -->
+            `;
+        } else if (rank === 'Joker') {
+            // Joker: Jester Hat (3 points) + Face
+            paths = `
+                <path d="M30 40 Q20 20 40 30 M50 35 Q50 10 50 10 M60 30 Q80 20 70 40" /> <!-- Hat -->
+                <circle cx="50" cy="55" r="10" /> <!-- Face -->
+                <path d="M42 60 Q50 70 58 60" /> <!-- Smile -->
+                <circle cx="30" cy="20" r="2" fill="currentColor" /> <!-- Bells -->
+                <circle cx="50" cy="5" r="2" fill="currentColor" />
+                <circle cx="70" cy="20" r="2" fill="currentColor" />
+            `;
+        }
+        return svgStart + paths + svgEnd;
+    }
+
     render(isDraggable = false) {
         const div = document.createElement('div');
         div.className = `card face-up ${this.color}`;
@@ -28,12 +73,20 @@ class Card {
         if (isDraggable) {
             div.draggable = true;
         }
+
+        const isFaceCard = ['J', 'Q', 'K', 'Joker'].includes(this.rank);
+        let centerContent = `<div class="card-center">${this.symbol}</div>`;
+        
+        if (isFaceCard) {
+            centerContent = this.getFaceSVG(this.rank);
+        }
+
         div.innerHTML = `
             <div class="card-top">
                 <span class="card-rank">${this.rank === 'Joker' ? 'J' : this.rank}</span>
                 <span class="card-suit">${this.symbol}</span>
             </div>
-            <div class="card-center">${this.symbol}</div>
+            ${centerContent}
             <div class="card-bottom">
                  <span class="card-rank">${this.rank === 'Joker' ? 'J' : this.rank}</span>
                 <span class="card-suit">${this.symbol}</span>
@@ -203,9 +256,14 @@ class Game {
         const topCard = this.discardPile[this.discardPile.length - 1];
         if (topCard) {
             const cardEl = topCard.render();
-            // If suit was changed by joker, show it
+            // If suit was changed by joker, show the selected suit
             if (topCard.rank === 'Joker') {
-                cardEl.querySelector('.card-center').innerText = this.getSuitSymbol(this.currentSuit);
+                const centerEl = cardEl.querySelector('.card-center');
+                centerEl.innerText = this.getSuitSymbol(this.currentSuit);
+                // Fix: Ensure color matches the selected suit
+                cardEl.classList.remove('red', 'black');
+                const suitColor = (this.currentSuit === 'hearts' || this.currentSuit === 'diamonds') ? 'red' : 'black';
+                cardEl.classList.add(suitColor);
             }
             discardPileEl.appendChild(cardEl);
         }

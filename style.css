@@ -272,10 +272,6 @@ body {
 }
 
 .card.face-up {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 10px;
     color: #000;
 }
 
@@ -283,25 +279,53 @@ body {
 .card.black { color: #2d3436; }
 
 .card-top {
+    position: absolute;
+    top: 5px;
+    left: 5px;
     display: flex;
     flex-direction: column;
+    align-items: center;
     line-height: 1;
 }
 
-.card-rank { font-size: 1.2rem; font-weight: 800; }
-.card-suit { font-size: 1.2rem; }
+.card-rank { font-size: 1rem; font-weight: 800; }
+.card-suit { font-size: 1rem; }
 
 .card-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     font-size: 3rem;
-    align-self: center;
+}
+
+.card-face-svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60%;
+    height: 60%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .card-bottom {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
     display: flex;
     flex-direction: column;
+    align-items: center;
     line-height: 1;
     transform: rotate(180deg);
 }
+
+.card.red .card-face-svg { stroke: #d63031; }
+.card.black .card-face-svg { stroke: #2d3436; }
 
 /* Suit Selector */
 .suit-selector {
@@ -405,11 +429,16 @@ body {
     }
 
     .card-rank, .card-suit {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
     }
 
     .card-center {
-        font-size: 2rem;
+        font-size: 1.5rem;
+    }
+
+    .card-artwork {
+        width: 40px;
+        height: 40px;
     }
 
     .draw-count {
