@@ -261,6 +261,12 @@ class Game {
 
         this.updateUI();
 
+        // Check for Win
+        if (hand.length === 0) {
+            this.endRound(playerType);
+            return;
+        }
+
         // Handle Special Cards
         let skipTurn = false;
         if (card.rank === '2') {
@@ -280,11 +286,6 @@ class Game {
             }
         }
 
-        // Check for Win
-        if (hand.length === 0) {
-            this.endRound(playerType);
-            return;
-        }
 
         // Next Turn
         if (!skipTurn) {
