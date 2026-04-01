@@ -322,7 +322,7 @@ class Game {
             // If suit was changed by joker, show the selected suit
             if (topCard.rank === 'Joker') {
                 const centerEl = cardEl.querySelector('.card-center');
-                centerEl.innerHTML = this.getSuitSVG(this.currentSuit);
+                centerEl.innerHTML = topCard.getSuitSVG(this.currentSuit);
                 // Fix: Ensure color matches the selected suit
                 cardEl.classList.remove('red', 'black');
                 const suitColor = (this.currentSuit === 'hearts' || this.currentSuit === 'diamonds') ? 'red' : 'black';
