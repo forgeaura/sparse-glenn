@@ -447,8 +447,16 @@ body::after {
     flex-direction: column;
     align-items: center;
     line-height: 1;
+}
+
+.card-bottom .card-rank {
     transform: rotate(180deg);
 }
+
+.card-bottom .card-suit {
+    /* Kept upright for clarity with SVGs */
+}
+
 
 .card.red .card-face-svg { stroke: #ef4444; }
 .card.black .card-face-svg { stroke: #ffffff; }

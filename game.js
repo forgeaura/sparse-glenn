@@ -28,17 +28,21 @@ class Card {
         
         switch(suit) {
             case 'hearts':
-                path = `<path d="M50 85 C50 85 10 60 10 35 A20 20 0 0 1 50 35 A20 20 0 0 1 90 35 C90 60 50 85 50 85" fill="currentColor"/>`;
+                // Sharper, more classic heart
+                path = `<path d="M50 88 C50 88 15 62 15 38 A18 18 0 0 1 50 30 A18 18 0 0 1 85 38 C85 62 50 88 50 88 Z" fill="currentColor"/>`;
                 break;
             case 'diamonds':
-                path = `<path d="M50 10 L85 50 L50 90 L15 50 Z" fill="currentColor"/>`;
+                path = `<path d="M50 12 L82 50 L50 88 L18 50 Z" fill="currentColor"/>`;
                 break;
             case 'clubs':
-                path = `<path d="M50 45 A15 15 0 1 1 35 30 A15 15 0 1 1 65 30 A15 15 0 1 1 50 45 M50 45 L50 85 M40 85 L60 85" stroke="currentColor" stroke-width="8" fill="currentColor"/>`;
+                // Better clubs with distinct leaves
+                path = `<path d="M50 50 A15 15 0 1 1 35 35 A15 15 0 1 1 65 35 A15 15 0 1 1 50 50 M50 50 L50 90 M35 90 L65 90" stroke="currentColor" stroke-width="6" fill="currentColor"/>`;
                 break;
             case 'spades':
-                path = `<path d="M50 15 C50 15 90 40 90 65 A20 20 0 1 1 50 65 A20 20 0 1 1 10 65 C10 40 50 15 50 15 M50 65 L50 85 M40 85 L60 85" stroke="currentColor" stroke-width="2" fill="currentColor"/>`;
+                // Sharper spade point and more distinct stem to avoid heart confusion
+                path = `<path d="M50 15 C50 15 15 45 15 70 A18 18 0 1 0 50 70 A18 18 0 1 0 85 70 C85 45 50 15 50 15 M50 70 L50 90 M35 90 L65 90" stroke="currentColor" stroke-width="2" fill="currentColor"/>`;
                 break;
+
             case 'wild':
                 path = `<path d="M50 10 L61 40 L93 40 L67 60 L77 90 L50 72 L23 90 L33 60 L7 40 L39 40 Z" fill="currentColor"/>`;
                 break;
