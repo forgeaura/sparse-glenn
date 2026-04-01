@@ -35,8 +35,10 @@
                         <label for="highlight-toggle">Highlight Playable</label>
                         <input type="checkbox" id="highlight-toggle" checked onchange="toggleHighlight(this.checked)">
                     </div>
-                    <button class="btn btn-small" onclick="resetTournament()">Reset Tournament</button>
+                    <button class="btn btn-small" onclick="showHowToPlay()">How to Play</button>
+                    <button class="btn btn-small btn-outline" onclick="resetTournament()">Reset Tournament</button>
                 </div>
+
                 <div class="game-log glass" id="game-log">
                     <p>Game started!</p>
                 </div>
@@ -74,10 +76,35 @@
             </div>
         </div>
 
+        <div id="how-to-play-overlay" class="overlay hidden">
+            <div class="modal glass scrollable">
+                <h2>How to Play Switch</h2>
+                <div class="tutorial-content">
+                    <section>
+                        <h3>The Goal</h3>
+                        <p>Be the first to get rid of all your cards. If another player wins, you get points based on the cards left in your hand (lower is better!).</p>
+                    </section>
+                    <section>
+                        <h3>Basic Rules</h3>
+                        <p>You can play a card if it matches the <strong>Suit</strong> or the <strong>Rank</strong> of the top card on the pile.</p>
+                    </section>
+                    <section>
+                        <h3>Special Cards</h3>
+                        <ul>
+                            <li><strong>2:</strong> Next player picks up 2 cards (unless they have a 2 to stack!).</li>
+                            <li><strong>3:</strong> Skips the next player's turn.</li>
+                            <li><strong>Joker:</strong> Wildcard! Play it anytime to change the suit.</li>
+                        </ul>
+                    </section>
+                </div>
+                <button class="btn" onclick="hideHowToPlay()">Got it!</button>
+            </div>
+        </div>
+
         <div id="round-end-overlay" class="overlay hidden">
             <div class="modal glass">
                 <h2 id="round-result-title">Round End</h2>
-                <div id="round-scores">
+                <div id="round-scores" class="score-display">
                     <!-- Round scores here -->
                 </div>
                 <button class="btn" id="next-round-btn">Next Round</button>
@@ -87,10 +114,11 @@
         <div id="game-end-overlay" class="overlay hidden">
             <div class="modal glass">
                 <h1 id="game-winner">Game Over</h1>
-                <div id="final-scores"></div>
-                <button class="btn" onclick="location.reload()">Play Again</button>
+                <div id="final-scores" class="score-display"></div>
+                <button class="btn" onclick="location.reload()">New Tournament</button>
             </div>
         </div>
+
     </div>
     <script src="game.js"></script>
 </body>
