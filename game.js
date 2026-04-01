@@ -75,18 +75,14 @@ class Card {
         }
 
         const isFaceCard = ['J', 'Q', 'K', 'Joker'].includes(this.rank);
-        let centerContent = `<div class="card-center">${this.symbol}</div>`;
-        
-        if (isFaceCard) {
-            centerContent = this.getFaceSVG(this.rank);
-        }
+        const centerContent = isFaceCard ? this.getFaceSVG(this.rank) : this.symbol;
 
         div.innerHTML = `
             <div class="card-top">
                 <span class="card-rank">${this.rank === 'Joker' ? 'J' : this.rank}</span>
                 <span class="card-suit">${this.symbol}</span>
             </div>
-            ${centerContent}
+            <div class="card-center">${centerContent}</div>
             <div class="card-bottom">
                  <span class="card-rank">${this.rank === 'Joker' ? 'J' : this.rank}</span>
                 <span class="card-suit">${this.symbol}</span>
@@ -387,20 +383,26 @@ class Game {
                    setTimeout(() => this.computerTurn(), 1000);
                 }
             } else {
-                this.reshuffle();
-                this.playerDraw();
+                if (this.reshuffle()) {
+                    this.playerDraw();
+                } else {
+                    this.log("No more cards in deck!");
+                    this.turn = 'computer';
+                    setTimeout(() => this.computerTurn(), 1000);
+                }
             }
         }
         this.updateUI();
     }
 
     reshuffle() {
-        if (this.discardPile.length <= 1) return;
+        if (this.discardPile.length <= 1) return false;
         this.log("Reshuffling discard pile...");
         const topCard = this.discardPile.pop();
         this.deck.cards = [...this.discardPile];
         this.deck.shuffle();
         this.discardPile = [topCard];
+        return true;
     }
 
     selectSuit(suit) {
@@ -478,8 +480,13 @@ class Game {
                     this.updateUI();
                 }
             } else {
-                this.reshuffle();
-                this.computerTurn();
+                if (this.reshuffle()) {
+                    this.computerTurn();
+                } else {
+                    this.log("No more cards in deck!");
+                    this.turn = 'player';
+                    this.updateUI();
+                }
             }
             return;
         }
