@@ -15,19 +15,52 @@
     margin: 0;
     padding: 0;
     font-family: 'Outfit', sans-serif;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
     background-color: var(--background);
-    background-image: url('assets/background.png');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
     color: var(--text);
     overflow: hidden;
     height: 100vh;
     width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
+
+/* Dynamic Background */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #0a0a0a 100%);
+    z-index: -2;
+}
+
+body::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: url('https://www.transparenttextures.com/patterns/carbon-fibre.png'),
+                radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
+    opacity: 0.1;
+    animation: rotateBG 60s linear infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes rotateBG {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 
 #game-container {
     height: 100%;
@@ -65,7 +98,40 @@ body {
     border-radius: 20px;
     text-align: center;
     max-width: 500px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
 }
+
+.modal.scrollable {
+    overflow-y: auto;
+}
+
+.tutorial-content {
+    text-align: left;
+    margin: 1.5rem 0;
+}
+
+.tutorial-content section {
+    margin-bottom: 1.5rem;
+}
+
+.tutorial-content h3 {
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+}
+
+.tutorial-content ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.tutorial-content li {
+    margin-bottom: 0.5rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--accent);
+}
+
 
 .modal h1 {
     font-size: 4rem;
@@ -93,6 +159,18 @@ body {
     transform: translateY(-2px);
     background: #fbbf24;
 }
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text);
+}
+
+.btn-outline:hover {
+    background: var(--glass);
+    border-color: var(--accent);
+}
+
 
 #game-board {
     display: flex;
@@ -169,10 +247,26 @@ body {
 }
 
 .game-log p {
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    padding-bottom: 5px;
+    padding-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: fadeIn 0.3s ease-out;
 }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.log-icon {
+    font-size: 1.1rem;
+    min-width: 24px;
+    text-align: center;
+}
+
 
 .main-area {
     flex-grow: 1;
@@ -251,19 +345,37 @@ body {
 }
 
 .card.drag-over {
-    border: 2px dashed var(--accent);
-    transform: scale(1.05);
+    border: 3px solid var(--accent);
+    transform: scale(1.1) translateY(-10px);
+    box-shadow: 0 0 20px var(--accent);
 }
 
 .card.card-back {
-    background-image: url('assets/card-back.png');
-    background-size: cover;
-    background-position: center;
+    background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.card.card-back::after {
+    content: '♠';
+    font-size: 3rem;
+    opacity: 0.1;
+    color: var(--accent);
 }
 
 .card.playable {
     box-shadow: 0 0 15px 5px var(--accent);
+    animation: pulsePlayable 2s infinite;
 }
+
+@keyframes pulsePlayable {
+    0% { box-shadow: 0 0 15px 2px var(--accent); }
+    50% { box-shadow: 0 0 25px 8px var(--accent); }
+    100% { box-shadow: 0 0 15px 2px var(--accent); }
+}
+
 
 .card.selected {
     border: 3px solid var(--accent);
@@ -324,8 +436,41 @@ body {
     transform: rotate(180deg);
 }
 
-.card.red .card-face-svg { stroke: #d63031; }
-.card.black .card-face-svg { stroke: #2d3436; }
+.card.red .card-face-svg { stroke: #ef4444; }
+.card.black .card-face-svg { stroke: #ffffff; }
+
+/* Special Card Animations */
+.card.playing {
+    animation: playCardAnim 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes playCardAnim {
+    0% { transform: scale(1) translateY(0); opacity: 1; }
+    50% { transform: scale(1.2) translateY(-100px); opacity: 0.8; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.card.drawing {
+    animation: drawCardAnim 0.5s ease-out forwards;
+}
+
+@keyframes drawCardAnim {
+    from { transform: translate(-300px, -300px) rotate(-20deg); opacity: 0; }
+    to { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+}
+
+.card.glow-2 { animation: glow2 1s infinite alternate; }
+@keyframes glow2 {
+    from { box-shadow: 0 0 5px #ef4444; }
+    to { box-shadow: 0 0 20px #ef4444; }
+}
+
+.card.glow-joker { animation: glowJoker 2s infinite linear; }
+@keyframes glowJoker {
+    0% { filter: hue-rotate(0deg) drop-shadow(0 0 5px var(--accent)); }
+    100% { filter: hue-rotate(360deg) drop-shadow(0 0 15px var(--accent)); }
+}
+
 
 /* Suit Selector */
 .suit-selector {
@@ -472,3 +617,21 @@ body {
         font-size: 2.5rem;
     }
 }
+
+/* Juice Animations */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.shake-accent {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    border: 2px solid var(--accent);
+}
+
+.shake-danger {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    border: 2px solid var(--danger);
+}
+

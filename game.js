@@ -2,7 +2,7 @@
 
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-const VALUES = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 11, 'K': 12, 'Joker': 20 };
+const VALUES = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'Joker': 20 };
 
 class Card {
     constructor(suit, rank) {
@@ -20,6 +20,32 @@ class Card {
         const symbols = { 'hearts': '♥', 'diamonds': '♦', 'clubs': '♣', 'spades': '♠', 'wild': '★' };
         return symbols[this.suit] || '';
     }
+
+    getSuitSVG(suit) {
+        const svgStart = `<svg class="card-suit-svg" viewBox="0 0 100 100">`;
+        const svgEnd = `</svg>`;
+        let path = '';
+        
+        switch(suit) {
+            case 'hearts':
+                path = `<path d="M50 85 C50 85 10 60 10 35 A20 20 0 0 1 50 35 A20 20 0 0 1 90 35 C90 60 50 85 50 85" fill="currentColor"/>`;
+                break;
+            case 'diamonds':
+                path = `<path d="M50 10 L85 50 L50 90 L15 50 Z" fill="currentColor"/>`;
+                break;
+            case 'clubs':
+                path = `<path d="M50 45 A15 15 0 1 1 35 30 A15 15 0 1 1 65 30 A15 15 0 1 1 50 45 M50 45 L50 85 M40 85 L60 85" stroke="currentColor" stroke-width="8" fill="currentColor"/>`;
+                break;
+            case 'spades':
+                path = `<path d="M50 15 C50 15 90 40 90 65 A20 20 0 1 1 50 65 A20 20 0 1 1 10 65 C10 40 50 15 50 15 M50 65 L50 85 M40 85 L60 85" stroke="currentColor" stroke-width="2" fill="currentColor"/>`;
+                break;
+            case 'wild':
+                path = `<path d="M50 10 L61 40 L93 40 L67 60 L77 90 L50 72 L23 90 L33 60 L7 40 L39 40 Z" fill="currentColor"/>`;
+                break;
+        }
+        return svgStart + path + svgEnd;
+    }
+
 
     getFaceSVG(rank) {
         const svgStart = `<svg class="card-face-svg" viewBox="0 0 100 100">`;
@@ -66,30 +92,36 @@ class Card {
         return svgStart + paths + svgEnd;
     }
 
-    render(isDraggable = false) {
+    render(isDraggable = false, animationClass = '') {
         const div = document.createElement('div');
-        div.className = `card face-up ${this.color}`;
+        div.className = `card face-up ${this.color} ${animationClass}`;
         div.dataset.id = this.id;
         if (isDraggable) {
             div.draggable = true;
         }
 
+        // Special glows
+        if (this.rank === '2') div.classList.add('glow-2');
+        if (this.rank === 'Joker') div.classList.add('glow-joker');
+
         const isFaceCard = ['J', 'Q', 'K', 'Joker'].includes(this.rank);
-        const centerContent = isFaceCard ? this.getFaceSVG(this.rank) : this.symbol;
+        const centerContent = isFaceCard ? this.getFaceSVG(this.rank) : this.getSuitSVG(this.suit);
+        const suitIcon = this.getSuitSVG(this.suit);
 
         div.innerHTML = `
             <div class="card-top">
                 <span class="card-rank">${this.rank === 'Joker' ? 'J' : this.rank}</span>
-                <span class="card-suit">${this.symbol}</span>
+                <span class="card-suit">${suitIcon}</span>
             </div>
             <div class="card-center">${centerContent}</div>
             <div class="card-bottom">
                  <span class="card-rank">${this.rank === 'Joker' ? 'J' : this.rank}</span>
-                <span class="card-suit">${this.symbol}</span>
+                <span class="card-suit">${suitIcon}</span>
             </div>
         `;
         return div;
     }
+
 }
 
 class Deck {
@@ -179,11 +211,20 @@ class Game {
         this.gameOver = false;
         this.isPendingSuitSelection = false;
 
-        // Deal 7 cards each
+        // Deal 7 cards each with staggered animation
         for (let i = 0; i < 7; i++) {
             this.playerHand.push(this.deck.draw());
             this.computerHand.push(this.deck.draw());
         }
+
+        // Trigger dealing animation after a short delay
+        this.isDealing = true;
+        this.updateUI();
+        setTimeout(() => {
+            this.isDealing = false;
+            this.updateUI();
+        }, 1500);
+
 
         // Initial discard card (cannot be a special card for simplicity of start)
         let initialCard = this.deck.draw();
@@ -205,10 +246,21 @@ class Game {
     log(msg) {
         const logBox = document.getElementById('game-log');
         const p = document.createElement('p');
-        p.innerText = msg;
+        
+        // Add icons based on keywords
+        let icon = '📝';
+        if (msg.includes('played')) icon = '🃏';
+        if (msg.includes('drew')) icon = '🎴';
+        if (msg.includes('suit')) icon = '✨';
+        if (msg.includes('Round')) icon = '🏁';
+        if (msg.includes('skipped')) icon = '🚫';
+        if (msg.includes('stack')) icon = '🔥';
+        
+        p.innerHTML = `<span class="log-icon">${icon}</span> ${msg}`;
         logBox.appendChild(p);
         logBox.scrollTop = logBox.scrollHeight;
     }
+
 
     updateUI() {
         // Render Player Hand
@@ -233,8 +285,14 @@ class Game {
             cardEl.ondrop = (e) => this.handleDrop(e, index);
             cardEl.ondragend = (e) => this.handleDragEnd(e);
 
+            if (this.isDealing) {
+                cardEl.classList.add('dealing');
+                cardEl.style.animationDelay = `${index * 0.1}s`;
+            }
+
             playerHandEl.appendChild(cardEl);
         });
+
 
         // Render Computer Hand (Face Down)
         const computerHandEl = document.getElementById('computer-hand');
@@ -242,9 +300,14 @@ class Game {
         this.computerHand.forEach((_, index) => {
             const cardEl = document.createElement('div');
             cardEl.className = 'card card-back';
+            if (this.isDealing) {
+                cardEl.classList.add('dealing');
+                cardEl.style.animationDelay = `${index * 0.1}s`;
+            }
             cardEl.style.setProperty('--rot', `${(index - (this.computerHand.length/2)) * 2}deg`);
             computerHandEl.appendChild(cardEl);
         });
+
 
         // Render Discard Pile (Top card)
         const discardPileEl = document.getElementById('discard-pile');
@@ -255,7 +318,7 @@ class Game {
             // If suit was changed by joker, show the selected suit
             if (topCard.rank === 'Joker') {
                 const centerEl = cardEl.querySelector('.card-center');
-                centerEl.innerText = this.getSuitSymbol(this.currentSuit);
+                centerEl.innerHTML = this.getSuitSVG(this.currentSuit);
                 // Fix: Ensure color matches the selected suit
                 cardEl.classList.remove('red', 'black');
                 const suitColor = (this.currentSuit === 'hearts' || this.currentSuit === 'diamonds') ? 'red' : 'black';
@@ -263,6 +326,7 @@ class Game {
             }
             discardPileEl.appendChild(cardEl);
         }
+
 
         // Update counts
         document.getElementById('draw-count').innerText = this.deck.cards.length;
@@ -311,9 +375,11 @@ class Game {
         this.currentRank = card.rank;
         this.currentSuit = card.suit;
 
+        // Visual Feedback: Add playing class to hand card before it disappears
+        this.updateUI(); 
+        
         this.log(`${playerType === 'player' ? 'You' : 'Computer'} played ${card.rank} of ${card.suit === 'wild' ? 'Wild' : card.suit}`);
 
-        this.updateUI();
 
         // Check for Win
         if (hand.length === 0) {
@@ -326,11 +392,14 @@ class Game {
         if (card.rank === '2') {
             this.pickupStack += 2;
             this.log(`Pickup stack increased to ${this.pickupStack}!`);
+            this.shakeBoard('danger');
         } else if (card.rank === '3') {
             skipTurn = true;
             this.log(`${playerType === 'player' ? 'Computer' : 'You'} skipped!`);
         } else if (card.rank === 'Joker') {
+            this.shakeBoard('accent');
             if (playerType === 'player') {
+
                 this.isPendingSuitSelection = true;
                 document.getElementById('suit-selector').classList.remove('hidden');
                 this.updateUI();
@@ -375,7 +444,14 @@ class Game {
             if (card) {
                 this.playerHand.push(card);
                 this.log(`You drew a card.`);
-                // If the player still can't play, they skip. For simplicity, we just pass turn.
+                
+                // Animate draw
+                this.updateUI();
+                const newCardEl = document.querySelector(`.player-hand .card[data-id="${card.id}"]`);
+                if (newCardEl) newCardEl.classList.add('drawing');
+
+                // If the player still can't play, they skip.
+
                 // But in Switch, you can usually play the card you just drew if it's playable.
                 // We'll allow one play after draw if playable, else pass.
                 if (!this.isPlayable(card)) {
@@ -619,9 +695,18 @@ class Game {
             <p>Computer: ${this.computerTotalScore}</p>
         `;
     }
+
+    shakeBoard(type = 'accent') {
+        const board = document.getElementById('game-board');
+        board.classList.remove('shake-accent', 'shake-danger');
+        void board.offsetWidth; // Force reflow
+        board.classList.add(`shake-${type}`);
+        setTimeout(() => board.classList.remove(`shake-${type}`), 500);
+    }
 }
 
 let game;
+
 
 function startGame() {
     game = new Game();
@@ -652,3 +737,12 @@ window.onload = () => {
 function selectSuit(suit) {
     if (game) game.selectSuit(suit);
 }
+
+function showHowToPlay() {
+    document.getElementById('how-to-play-overlay').classList.remove('hidden');
+}
+
+function hideHowToPlay() {
+    document.getElementById('how-to-play-overlay').classList.add('hidden');
+}
+
