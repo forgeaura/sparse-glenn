@@ -401,29 +401,43 @@ body::after {
 }
 
 .card-rank { font-size: 1rem; font-weight: 800; }
-.card-suit { font-size: 1rem; }
+.card-suit { 
+    width: 20px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.card-suit-svg {
+    width: 100%;
+    height: 100%;
+}
+
 
 .card-center {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 3rem;
-}
-
-.card-face-svg {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     width: 60%;
     height: 60%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.card-face-svg {
+    width: 100%;
+    height: 100%;
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
+
 
 .card-bottom {
     position: absolute;
