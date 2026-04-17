@@ -189,6 +189,14 @@ const AuthManager = {
         }
     },
 
+    async signInWithGoogle() {
+        const { error } = await client.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.href }
+        });
+        if (error) showAuthError(friendlyError(error.message));
+    },
+
     async signOut() {
         await client.auth.signOut();
         this._cachedUser = null;
