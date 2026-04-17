@@ -365,15 +365,32 @@ body::after {
     color: var(--accent);
 }
 
-.card.playable {
-    box-shadow: 0 0 15px 5px var(--accent);
-    animation: pulsePlayable 2s infinite;
+.card.playable::before {
+    content: '▲';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--accent);
+    font-size: 12px;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 20;
+    text-shadow: 0 0 8px var(--accent);
+    animation: pulseIndicator 1.2s ease-in-out infinite;
 }
 
-@keyframes pulsePlayable {
-    0% { box-shadow: 0 0 15px 2px var(--accent); }
-    50% { box-shadow: 0 0 25px 8px var(--accent); }
-    100% { box-shadow: 0 0 15px 2px var(--accent); }
+@keyframes pulseIndicator {
+    0%, 100% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0px);
+        text-shadow: 0 0 8px var(--accent);
+    }
+    50% {
+        opacity: 0.5;
+        transform: translateX(-50%) translateY(-3px);
+        text-shadow: 0 0 4px var(--accent);
+    }
 }
 
 
