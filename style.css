@@ -78,15 +78,18 @@ body::after {
 
 .overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 100;
+}
+
+.no-scroll {
+    overflow: hidden !important;
 }
 
 .hidden {
@@ -562,81 +565,144 @@ body::after {
 
 /* Mobile Responsiveness */
 @media screen and (max-width: 768px) {
-    body {
-        overflow-y: auto;
-        height: auto;
-        min-height: 100vh;
+    html, body {
+        overflow: hidden;
+        height: 100vh;
+        max-width: 100vw;
+    }
+
+    #game-container {
+        height: 100vh;
+        overflow: hidden;
     }
 
     #game-board {
         flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
     }
 
+    /* Sidebar becomes a compact horizontal strip at the top */
     .sidebar {
-        width: calc(100% - 40px);
-        margin: 10px 20px;
-        order: 2; /* Sidebar after main area for better mobile flow */
-        padding: 15px;
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+        padding: 6px 12px;
+        order: -1;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
     }
 
-    .sidebar h2 {
-        font-size: 1rem;
+    .score-board {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+    }
+
+    .score-board h2 {
+        display: none;
     }
 
     .score-row {
-        font-size: 1.1rem;
+        font-size: 0.95rem;
+        margin-bottom: 0;
+        gap: 4px;
     }
 
+    .round-indicator {
+        font-size: 0.75rem;
+        margin-top: 0;
+        opacity: 0.7;
+    }
+
+    /* Hide game log on mobile — not needed during play */
     .game-log {
-        height: 120px;
-        flex-grow: 0;
+        display: none;
     }
 
+    /* Collapse settings to just the buttons in a row */
+    .settings {
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border: none;
+        box-shadow: none;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .settings h3 {
+        display: none;
+    }
+
+    .setting-row {
+        margin-bottom: 0;
+        gap: 4px;
+        font-size: 0.8rem;
+    }
+
+    .btn-small {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.75rem;
+        width: auto;
+        margin: 0;
+    }
+
+    /* Main game area fills the remaining viewport height */
     .main-area {
-        padding: 20px 10px;
-        min-height: 80vh;
+        flex: 1;
+        min-height: 0;
+        padding: 8px 10px;
+        overflow: hidden;
     }
 
     /* Smaller cards for mobile */
     .card {
-        width: 70px;
-        height: 105px;
+        width: 65px;
+        height: 97px;
         border-radius: 6px;
     }
 
     .player-hand .card:not(:last-child) {
-        margin-right: -30px;
+        margin-right: -28px;
     }
 
     .opponent-hand .card:not(:last-child) {
-        margin-right: -45px;
+        margin-right: -42px;
     }
 
     .card-rank, .card-suit {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
 
     .card-center {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
     }
 
     .card-artwork {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
     }
 
     .draw-count {
-        bottom: -25px;
-        font-size: 0.8rem;
+        bottom: -22px;
+        font-size: 0.75rem;
     }
 
     .center-pile {
-        gap: 20px;
-        margin: 20px 0;
+        gap: 16px;
+        margin: 10px 0;
     }
 
     .suit-selector {
-        bottom: 120px;
+        bottom: 100px;
         width: 90%;
         padding: 10px;
     }

@@ -679,11 +679,13 @@ class Game {
         title.innerText = (playerScore < computerScore) ? "You Won the Round!" : "Computer Won the Round!";
         
         document.getElementById('round-end-overlay').classList.remove('hidden');
+        document.body.classList.add('no-scroll');
 
         this.saveState();
 
         document.getElementById('next-round-btn').onclick = () => {
              document.getElementById('round-end-overlay').classList.add('hidden');
+             document.body.classList.remove('no-scroll');
              this.currentRound++;
              this.startRound();
         };
@@ -691,6 +693,7 @@ class Game {
 
     endGame() {
         document.getElementById('game-end-overlay').classList.remove('hidden');
+        document.body.classList.add('no-scroll');
         const winner = this.playerTotalScore < this.computerTotalScore ? "You" : "Computer";
         document.getElementById('game-winner').innerText = `${winner} Won the Game!`;
         document.getElementById('final-scores').innerHTML = `
@@ -744,9 +747,11 @@ function selectSuit(suit) {
 
 function showHowToPlay() {
     document.getElementById('how-to-play-overlay').classList.remove('hidden');
+    document.body.classList.add('no-scroll');
 }
 
 function hideHowToPlay() {
     document.getElementById('how-to-play-overlay').classList.add('hidden');
+    document.body.classList.remove('no-scroll');
 }
 
