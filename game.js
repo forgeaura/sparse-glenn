@@ -182,28 +182,41 @@ class Game {
     }
 
     saveState() {
-        const state = {
+        const state = this.getState();
+        if (window.AuthManager) {
+            AuthManager.saveState(state); // async fire-and-forget; mirrors to localStorage too
+        } else {
+            localStorage.setItem('switch_tournament_state', JSON.stringify(state));
+        }
+    }
+
+    loadState() {
+        // Phase 1: instant render from localStorage
+        const saved = localStorage.getItem('switch_tournament_state');
+        if (saved) this.applyState(JSON.parse(saved));
+        // Phase 2: if Firebase auth resolved before window.onload, apply remote state
+        if (window._pendingRemoteState) {
+            this.applyState(window._pendingRemoteState);
+            window._pendingRemoteState = null;
+        }
+    }
+
+    getState() {
+        return {
             playerTotalScore: this.playerTotalScore,
             computerTotalScore: this.computerTotalScore,
             currentRound: this.currentRound,
             showPlayableHighlight: this.showPlayableHighlight
         };
-        localStorage.setItem('switch_tournament_state', JSON.stringify(state));
     }
 
-    loadState() {
-        const saved = localStorage.getItem('switch_tournament_state');
-        if (saved) {
-            const state = JSON.parse(saved);
-            this.playerTotalScore = state.playerTotalScore || 0;
-            this.computerTotalScore = state.computerTotalScore || 0;
-            this.currentRound = state.currentRound || 1;
-            this.showPlayableHighlight = (state.showPlayableHighlight !== undefined) ? state.showPlayableHighlight : true;
-            
-            // Sync checkbox
-            const checkbox = document.getElementById('highlight-toggle');
-            if (checkbox) checkbox.checked = this.showPlayableHighlight;
-        }
+    applyState(state) {
+        this.playerTotalScore = state.playerTotalScore || 0;
+        this.computerTotalScore = state.computerTotalScore || 0;
+        this.currentRound = state.currentRound || 1;
+        this.showPlayableHighlight = (state.showPlayableHighlight !== undefined) ? state.showPlayableHighlight : true;
+        const checkbox = document.getElementById('highlight-toggle');
+        if (checkbox) checkbox.checked = this.showPlayableHighlight;
     }
 
     startRound() {
@@ -723,7 +736,11 @@ function startGame() {
 
 function resetTournament() {
     if (confirm("Are you sure you want to reset the tournament? All scores will be lost.")) {
+        const blank = { playerTotalScore: 0, computerTotalScore: 0, currentRound: 1, showPlayableHighlight: true };
         localStorage.removeItem('switch_tournament_state');
+        if (window.AuthManager && AuthManager.currentUser) {
+            AuthManager.saveState(blank);
+        }
         location.reload();
     }
 }
