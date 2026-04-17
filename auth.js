@@ -4,8 +4,8 @@
 // ── Supabase config ──────────────────────────────────────────────────────────
 // Replace these two values with your project's credentials from:
 // Supabase dashboard → Project Settings → API
-const SUPABASE_URL = 'YOUR_PROJECT_URL';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+const SUPABASE_URL = 'https://ypwjvzybxbsubixlslsz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_DBHsEayqtgagTjrsm9nk-w_WpcYb3OU';
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
