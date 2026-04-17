@@ -1,42 +1,50 @@
-// Firebase Auth + Firestore integration for Switch Card Game
+// Supabase Auth + Database integration for Switch Card Game
 // Exposes window.AuthManager — must be loaded before game.js
 
-// ── Firebase config ─────────────────────────────────────────────────────────
-// Replace these placeholder values with your project's firebaseConfig object
-// from the Firebase console (Project Settings → Your apps → SDK setup).
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
+// ── Supabase config ──────────────────────────────────────────────────────────
+// Replace these two values with your project's credentials from:
+// Supabase dashboard → Project Settings → API
+const SUPABASE_URL = 'YOUR_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ── Firestore helpers ────────────────────────────────────────────────────────
+// ── Database helpers ─────────────────────────────────────────────────────────
 
-async function saveStateToFirestore(uid, state) {
+async function saveStateToSupabase(userId, state) {
     try {
-        await db.collection('users').doc(uid).set({ tournamentState: state }, { merge: true });
+        const { error } = await client.from('tournament_states').upsert({
+            user_id: userId,
+            player_total_score: state.playerTotalScore,
+            computer_total_score: state.computerTotalScore,
+            current_round: state.currentRound,
+            show_playable_highlight: state.showPlayableHighlight,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+        if (error) console.warn('Supabase save failed:', error.message);
     } catch (err) {
-        console.warn('Firestore save failed, mirrored to localStorage:', err);
+        console.warn('Supabase save error:', err);
     }
 }
 
-async function loadStateFromFirestore(uid) {
+async function loadStateFromSupabase(userId) {
     try {
-        const doc = await db.collection('users').doc(uid).get();
-        if (doc.exists && doc.data().tournamentState) {
-            return doc.data().tournamentState;
-        }
+        const { data, error } = await client
+            .from('tournament_states')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+        if (error || !data) return null;
+        return {
+            playerTotalScore: data.player_total_score,
+            computerTotalScore: data.computer_total_score,
+            currentRound: data.current_round,
+            showPlayableHighlight: data.show_playable_highlight
+        };
     } catch (err) {
-        console.warn('Firestore load failed:', err);
+        console.warn('Supabase load error:', err);
+        return null;
     }
-    return null;
 }
 
 // ── Sidebar UI ───────────────────────────────────────────────────────────────
@@ -58,14 +66,14 @@ function updateSidebarAuthUI(user) {
 }
 
 // ── Auth state listener ──────────────────────────────────────────────────────
-// Fires on page load with cached credentials, and again after sign-in/out.
 
-auth.onAuthStateChanged(async (user) => {
+client.auth.onAuthStateChange(async (event, session) => {
+    const user = session?.user ?? null;
     updateSidebarAuthUI(user);
 
     if (!user) return;
 
-    const remoteState = await loadStateFromFirestore(user.uid);
+    const remoteState = await loadStateFromSupabase(user.id);
     if (!remoteState) return;
 
     if (window.game) {
@@ -91,13 +99,26 @@ function clearAuthError() {
     el.classList.add('hidden');
 }
 
+function friendlyError(message) {
+    if (!message) return 'Something went wrong. Please try again.';
+    const m = message.toLowerCase();
+    if (m.includes('invalid login') || m.includes('invalid email or password') || m.includes('email not confirmed')) return 'Invalid email or password.';
+    if (m.includes('already registered') || m.includes('already exists')) return 'An account with this email already exists.';
+    if (m.includes('password should be')) return 'Password must be at least 6 characters.';
+    if (m.includes('valid email') || m.includes('invalid email')) return 'Please enter a valid email address.';
+    if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts. Please try again later.';
+    if (m.includes('user not found') || m.includes('no user')) return 'No account found with that email.';
+    return 'Something went wrong. Please try again.';
+}
+
 // ── AuthManager (public API) ─────────────────────────────────────────────────
 
 const AuthManager = {
     _isRegisterMode: false,
 
     get currentUser() {
-        return auth.currentUser;
+        // Synchronous access via cached session
+        return this._cachedUser ?? null;
     },
 
     openModal() {
@@ -146,27 +167,22 @@ const AuthManager = {
 
         try {
             if (this._isRegisterMode) {
-                await auth.createUserWithEmailAndPassword(email, password);
-                // Upload current local state so the new account starts with existing progress
-                if (window.game) {
-                    await saveStateToFirestore(auth.currentUser.uid, window.game.getState());
+                const { data, error } = await client.auth.signUp({ email, password });
+                if (error) { showAuthError(friendlyError(error.message)); return; }
+                this._cachedUser = data.user;
+                // Upload current local state so new account keeps existing progress
+                if (window.game && data.user) {
+                    await saveStateToSupabase(data.user.id, window.game.getState());
                 }
             } else {
-                await auth.signInWithEmailAndPassword(email, password);
-                // onAuthStateChanged fires next and will load remote state into the game
+                const { data, error } = await client.auth.signInWithPassword({ email, password });
+                if (error) { showAuthError(friendlyError(error.message)); return; }
+                this._cachedUser = data.user;
+                // onAuthStateChange fires next and loads remote state into the game
             }
             this.closeModal();
         } catch (err) {
-            const messages = {
-                'auth/user-not-found': 'No account found with that email.',
-                'auth/wrong-password': 'Incorrect password.',
-                'auth/invalid-login-credentials': 'Invalid email or password.',
-                'auth/email-already-in-use': 'An account with this email already exists.',
-                'auth/weak-password': 'Password must be at least 6 characters.',
-                'auth/invalid-email': 'Please enter a valid email address.',
-                'auth/too-many-requests': 'Too many attempts. Please try again later.',
-            };
-            showAuthError(messages[err.code] || 'Something went wrong. Please try again.');
+            showAuthError(friendlyError(err.message));
         } finally {
             submitBtn.disabled = false;
             this._refreshModalUI();
@@ -174,22 +190,29 @@ const AuthManager = {
     },
 
     async signOut() {
-        await auth.signOut();
+        await client.auth.signOut();
+        this._cachedUser = null;
         updateSidebarAuthUI(null);
-        // Reload state from localStorage after sign-out
         if (window.game) {
             window.game.loadState();
             window.game.updateUI();
         }
     },
 
-    // Called by game.js saveState() — writes to Firestore AND localStorage
+    // Called by game.js saveState() — writes to Supabase AND localStorage
     async saveState(state) {
         localStorage.setItem('switch_tournament_state', JSON.stringify(state));
-        if (auth.currentUser) {
-            await saveStateToFirestore(auth.currentUser.uid, state);
+        if (this._cachedUser) {
+            await saveStateToSupabase(this._cachedUser.id, state);
         }
     },
+
+    _cachedUser: null,
 };
+
+// Keep _cachedUser in sync with auth state
+client.auth.getSession().then(({ data: { session } }) => {
+    AuthManager._cachedUser = session?.user ?? null;
+});
 
 window.AuthManager = AuthManager;
