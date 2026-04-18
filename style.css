@@ -714,22 +714,35 @@ body::after {
         margin: 0;
     }
 
-    /* Main game area: CSS Grid — 2:1:1 spacer rows, full-width column */
+    /* Main game area: flex column — auto margins position elements proportionally */
     .main-area {
         flex: 1;
         min-height: 0;
-        display: grid;
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 2fr auto 1fr auto 1fr;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
         padding: 8px 10px;
         overflow: hidden;
-        align-items: start;
     }
 
-    /* Rows 2, 4, 6 are empty spacers; content sits in rows 1, 3, 5 */
-    .opponent-hand { grid-row: 1; }
-    .center-pile   { grid-row: 3; }
-    .player-area   { grid-row: 5; }
+    /* Full width on all three game zones so internal flex centering works */
+    .opponent-hand,
+    .center-pile,
+    .player-area {
+        width: 100%;
+        flex-shrink: 0;
+    }
+
+    /* auto top margin pushes centre pile away from the computer hand */
+    .center-pile {
+        margin-top: auto;
+        margin-bottom: 5dvh;
+    }
+
+    /* bottom margin lifts player hand to ~35% from screen bottom */
+    .player-area {
+        margin-bottom: 10dvh;
+    }
 
     /* Remove desktop min-height that wastes vertical space on mobile */
     .opponent-hand, .player-hand {
