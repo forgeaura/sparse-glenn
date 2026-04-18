@@ -579,23 +579,23 @@ body::after {
 @media screen and (max-width: 768px) {
     html, body {
         overflow: hidden;
-        height: 100dvh;
-        height: 100vh; /* fallback */
+        height: 100vh;
+        height: 100dvh; /* dvh accounts for browser chrome shrinking on scroll */
         max-width: 100vw;
-        touch-action: none; /* block pinch-zoom on iOS */
+        touch-action: none;
     }
 
     #game-container {
+        height: 100vh;
         height: 100dvh;
-        height: 100vh; /* fallback */
         overflow: hidden;
         touch-action: none;
     }
 
     #game-board {
         flex-direction: column;
+        height: 100vh;
         height: 100dvh;
-        height: 100vh; /* fallback */
         overflow: hidden;
     }
 
@@ -607,11 +607,11 @@ body::after {
         padding: 6px 12px;
         order: -1;
         flex-direction: row;
-        flex-wrap: nowrap; /* single row only */
+        flex-wrap: nowrap;
         align-items: center;
         gap: 8px;
         flex-shrink: 0;
-        position: relative; /* anchor for mobile-menu dropdown */
+        position: relative;
     }
 
     .score-board {
@@ -619,7 +619,7 @@ body::after {
         align-items: center;
         gap: 8px;
         flex: 1;
-        min-width: 0; /* allow shrinking */
+        min-width: 0;
     }
 
     .score-board h2 {
@@ -645,11 +645,6 @@ body::after {
         display: none;
     }
 
-    /* Hide settings and auth from the strip — they live in the hamburger dropdown */
-    .sidebar > .mobile-menu {
-        display: none;
-    }
-
     /* Hamburger button */
     .hamburger-btn {
         display: flex;
@@ -667,8 +662,8 @@ body::after {
         padding: 0;
     }
 
-    /* Mobile dropdown panel (hidden by default) */
-    .mobile-menu {
+    /* Mobile dropdown — ID selector beats all class rules */
+    #mobile-menu {
         display: none;
         position: absolute;
         top: 100%;
@@ -684,12 +679,12 @@ body::after {
         gap: 12px;
     }
 
-    .mobile-menu.open {
+    #mobile-menu.open {
         display: flex;
     }
 
     /* Settings inside dropdown */
-    .mobile-menu .settings {
+    #mobile-menu .settings {
         padding: 0;
         border-radius: 0;
         background: transparent;
@@ -703,11 +698,11 @@ body::after {
         align-items: center;
     }
 
-    .mobile-menu .settings h3 {
+    #mobile-menu .settings h3 {
         display: none;
     }
 
-    .mobile-menu .setting-row {
+    #mobile-menu .setting-row {
         margin-bottom: 0;
         gap: 4px;
         font-size: 0.85rem;
