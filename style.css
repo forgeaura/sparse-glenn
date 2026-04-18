@@ -714,18 +714,18 @@ body::after {
         margin: 0;
     }
 
-    /* Main game area: flex column — auto margins position elements proportionally */
+    /* Main game area: anchored to bottom, opponent hand pushed to top */
     .main-area {
         flex: 1;
         min-height: 0;
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;
-        padding: 8px 10px;
+        justify-content: flex-end;
+        padding: 8px 10px 18dvh;
         overflow: hidden;
     }
 
-    /* Full width on all three game zones so internal flex centering works */
+    /* Full width on all three game zones so internal centering works */
     .opponent-hand,
     .center-pile,
     .player-area {
@@ -733,15 +733,14 @@ body::after {
         flex-shrink: 0;
     }
 
-    /* auto top margin pushes centre pile away from the computer hand */
-    .center-pile {
-        margin-top: auto;
-        margin-bottom: 5dvh;
+    /* auto bottom margin absorbs all free space, pushing opponent hand to top */
+    .opponent-hand {
+        margin-bottom: auto;
     }
 
-    /* bottom margin lifts player hand to ~35% from screen bottom */
-    .player-area {
-        margin-bottom: 10dvh;
+    /* gap between centre pile and player hand */
+    .center-pile {
+        margin-bottom: 5dvh;
     }
 
     /* Remove desktop min-height that wastes vertical space on mobile */
