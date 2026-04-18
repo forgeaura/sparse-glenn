@@ -762,7 +762,24 @@ function selectSuit(suit) {
     if (game) game.selectSuit(suit);
 }
 
+function toggleMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const btn = document.getElementById('hamburger-btn');
+    const isOpen = menu.classList.toggle('open');
+    btn.textContent = isOpen ? '\u2715' : '\u2630';
+}
+
+function closeMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const btn = document.getElementById('hamburger-btn');
+    if (menu && menu.classList.contains('open')) {
+        menu.classList.remove('open');
+        btn.textContent = '\u2630';
+    }
+}
+
 function showHowToPlay() {
+    closeMobileMenu();
     document.getElementById('how-to-play-overlay').classList.remove('hidden');
     document.body.classList.add('no-scroll');
 }

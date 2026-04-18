@@ -175,6 +175,18 @@ body::after {
 }
 
 
+/* Hamburger button — hidden on desktop, shown on mobile */
+.hamburger-btn {
+    display: none;
+}
+
+/* Mobile menu wrapper — transparent flex column on desktop */
+.mobile-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
 #game-board {
     display: flex;
     height: 100%;
@@ -567,22 +579,27 @@ body::after {
 @media screen and (max-width: 768px) {
     html, body {
         overflow: hidden;
-        height: 100vh;
+        height: 100dvh;
+        height: 100vh; /* fallback */
         max-width: 100vw;
+        touch-action: none; /* block pinch-zoom on iOS */
     }
 
     #game-container {
-        height: 100vh;
+        height: 100dvh;
+        height: 100vh; /* fallback */
         overflow: hidden;
+        touch-action: none;
     }
 
     #game-board {
         flex-direction: column;
-        height: 100vh;
+        height: 100dvh;
+        height: 100vh; /* fallback */
         overflow: hidden;
     }
 
-    /* Sidebar becomes a compact horizontal strip at the top */
+    /* Sidebar: single-row strip — no wrapping */
     .sidebar {
         width: 100%;
         margin: 0;
@@ -590,17 +607,19 @@ body::after {
         padding: 6px 12px;
         order: -1;
         flex-direction: row;
-        flex-wrap: wrap;
+        flex-wrap: nowrap; /* single row only */
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         flex-shrink: 0;
+        position: relative; /* anchor for mobile-menu dropdown */
     }
 
     .score-board {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         flex: 1;
+        min-width: 0; /* allow shrinking */
     }
 
     .score-board h2 {
@@ -608,24 +627,69 @@ body::after {
     }
 
     .score-row {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         margin-bottom: 0;
-        gap: 4px;
+        gap: 3px;
+        white-space: nowrap;
     }
 
     .round-indicator {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         margin-top: 0;
         opacity: 0.7;
+        white-space: nowrap;
     }
 
-    /* Hide game log on mobile — not needed during play */
+    /* Hide game log on mobile */
     .game-log {
         display: none;
     }
 
-    /* Collapse settings to just the buttons in a row */
-    .settings {
+    /* Hide settings and auth from the strip — they live in the hamburger dropdown */
+    .sidebar > .mobile-menu {
+        display: none;
+    }
+
+    /* Hamburger button */
+    .hamburger-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 1px solid var(--glass-border);
+        color: var(--text);
+        border-radius: 8px;
+        width: 36px;
+        height: 36px;
+        font-size: 1.2rem;
+        cursor: pointer;
+        flex-shrink: 0;
+        padding: 0;
+    }
+
+    /* Mobile dropdown panel (hidden by default) */
+    .mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 200;
+        background: rgba(10, 10, 10, 0.97);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--glass-border);
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .mobile-menu.open {
+        display: flex;
+    }
+
+    /* Settings inside dropdown */
+    .mobile-menu .settings {
         padding: 0;
         border-radius: 0;
         background: transparent;
@@ -634,18 +698,19 @@ body::after {
         border: none;
         box-shadow: none;
         display: flex;
-        gap: 6px;
+        flex-wrap: wrap;
+        gap: 8px;
         align-items: center;
     }
 
-    .settings h3 {
+    .mobile-menu .settings h3 {
         display: none;
     }
 
-    .setting-row {
+    .mobile-menu .setting-row {
         margin-bottom: 0;
         gap: 4px;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
     }
 
     .btn-small {
@@ -661,6 +726,11 @@ body::after {
         min-height: 0;
         padding: 8px 10px;
         overflow: hidden;
+    }
+
+    /* Remove desktop min-height that wastes vertical space on mobile */
+    .opponent-hand, .player-hand {
+        min-height: unset;
     }
 
     /* Smaller cards for mobile */
@@ -720,6 +790,26 @@ body::after {
 
     .modal h1 {
         font-size: 2.5rem;
+    }
+}
+
+/* Extra-small screens (e.g. iPhone SE, Galaxy A series) */
+@media screen and (max-width: 380px) {
+    .card {
+        width: 55px;
+        height: 82px;
+    }
+
+    .player-hand .card:not(:last-child) {
+        margin-right: -24px;
+    }
+
+    .opponent-hand .card:not(:last-child) {
+        margin-right: -38px;
+    }
+
+    .score-row {
+        font-size: 0.8rem;
     }
 }
 
