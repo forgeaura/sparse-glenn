@@ -559,6 +559,10 @@ body::after {
     transform: scale(1.1);
 }
 
+.suit-buttons button.suit-red {
+    color: #d32f2f;
+}
+
 /* Animations */
 @keyframes deal {
     from {
