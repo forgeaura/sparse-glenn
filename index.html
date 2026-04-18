@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Switch Card Game</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,24 +29,28 @@
                         Round <span id="current-round">1</span>
                     </div>
                 </div>
-                <div class="settings glass">
-                    <h3>Settings</h3>
-                    <div class="setting-row">
-                        <label for="highlight-toggle">Highlight Playable</label>
-                        <input type="checkbox" id="highlight-toggle" checked onchange="toggleHighlight(this.checked)">
-                    </div>
-                    <button class="btn btn-small" onclick="showHowToPlay()">How to Play</button>
-                    <button class="btn btn-small btn-outline" onclick="resetTournament()">Reset Tournament</button>
-                </div>
+                <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Menu">&#9776;</button>
 
-                <div class="auth-section glass" id="auth-section">
-                    <div id="auth-logged-out">
-                        <p class="auth-hint">Sign in to save scores across devices</p>
-                        <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                <div class="mobile-menu" id="mobile-menu">
+                    <div class="settings glass">
+                        <h3>Settings</h3>
+                        <div class="setting-row">
+                            <label for="highlight-toggle">Highlight Playable</label>
+                            <input type="checkbox" id="highlight-toggle" checked onchange="toggleHighlight(this.checked)">
+                        </div>
+                        <button class="btn btn-small" onclick="showHowToPlay()">How to Play</button>
+                        <button class="btn btn-small btn-outline" onclick="resetTournament()">Reset Tournament</button>
                     </div>
-                    <div id="auth-logged-in" class="hidden">
-                        <p class="auth-user-email" id="auth-user-email"></p>
-                        <button class="btn btn-small btn-outline" onclick="AuthManager.signOut()">Sign Out</button>
+
+                    <div class="auth-section glass" id="auth-section">
+                        <div id="auth-logged-out">
+                            <p class="auth-hint">Sign in to save scores across devices</p>
+                            <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                        </div>
+                        <div id="auth-logged-in" class="hidden">
+                            <p class="auth-user-email" id="auth-user-email"></p>
+                            <button class="btn btn-small btn-outline" onclick="AuthManager.signOut()">Sign Out</button>
+                        </div>
                     </div>
                 </div>
 
