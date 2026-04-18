@@ -721,7 +721,7 @@ body::after {
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
-        padding: 8px 10px 18dvh;
+        padding: 8px 10px 28dvh;
         overflow: hidden;
     }
 
@@ -738,9 +738,9 @@ body::after {
         margin-bottom: auto;
     }
 
-    /* gap between centre pile and player hand */
+    /* gap between centre pile and player hand — centres pile between the two hands */
     .center-pile {
-        margin-bottom: 5dvh;
+        margin-bottom: 14dvh;
     }
 
     /* Remove desktop min-height that wastes vertical space on mobile */
