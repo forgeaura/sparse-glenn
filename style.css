@@ -784,7 +784,6 @@ body::after {
 
     .center-pile {
         gap: 16px;
-        margin: 10px 0;
     }
 
     .suit-selector {
