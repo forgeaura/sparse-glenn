@@ -69,6 +69,7 @@ function updateSidebarAuthUI(user) {
 
 client.auth.onAuthStateChange(async (event, session) => {
     const user = session?.user ?? null;
+    AuthManager._cachedUser = user; // Ensure cache is sync
     updateSidebarAuthUI(user);
 
     if (!user) return;
@@ -76,12 +77,25 @@ client.auth.onAuthStateChange(async (event, session) => {
     const remoteState = await loadStateFromSupabase(user.id);
     if (!remoteState) return;
 
-    if (window.game) {
-        window.game.applyState(remoteState);
-        window.game.updateUI();
-    } else {
-        // Auth resolved before window.onload — game picks this up in loadState()
-        window._pendingRemoteState = remoteState;
+    // Check for conflicts with local state
+    const localSaved = localStorage.getItem('switch_tournament_state');
+    const localState = localSaved ? JSON.parse(localSaved) : null;
+
+    const isCloudAdvanced = !localState || 
+        remoteState.currentRound > localState.currentRound ||
+        (remoteState.playerTotalScore !== localState.playerTotalScore);
+
+    if (isCloudAdvanced) {
+        if (!localState || confirm("Found a cloud save with your tournament progress. Would you like to resume your session from the cloud?")) {
+            if (window.game) {
+                window.game.applyState(remoteState);
+                window.game.updateUI();
+                // Update local storage backup immediately
+                localStorage.setItem('switch_tournament_state', JSON.stringify(remoteState));
+            } else {
+                window._pendingRemoteState = remoteState;
+            }
+        }
     }
 });
 

@@ -11,10 +11,20 @@
 </head>
 <body>
     <div id="game-container">
-        <!-- Removed initial overlay for persistent tournament -->
-
+        <!-- Supabase Auth UI -->
         <div id="game-board">
             <div class="sidebar left glass">
+                <div class="auth-section glass" id="auth-section">
+                    <div id="auth-logged-out">
+                        <p class="auth-hint">Sign in to save scores across devices</p>
+                        <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                    </div>
+                    <div id="auth-logged-in" class="hidden">
+                        <p class="auth-user-email" id="auth-user-email"></p>
+                        <button class="btn btn-small btn-outline" onclick="AuthManager.signOut()">Sign Out</button>
+                    </div>
+                </div>
+
                 <div class="score-board">
                     <h2>Tournament Score</h2>
                     <div class="score-row">
@@ -40,17 +50,6 @@
                         </div>
                         <button class="btn btn-small" onclick="showHowToPlay()">How to Play</button>
                         <button class="btn btn-small btn-outline" onclick="resetTournament()">Reset Tournament</button>
-                    </div>
-
-                    <div class="auth-section glass" id="auth-section">
-                        <div id="auth-logged-out">
-                            <p class="auth-hint">Sign in to save scores across devices</p>
-                            <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
-                        </div>
-                        <div id="auth-logged-in" class="hidden">
-                            <p class="auth-user-email" id="auth-user-email"></p>
-                            <button class="btn btn-small btn-outline" onclick="AuthManager.signOut()">Sign Out</button>
-                        </div>
                     </div>
                 </div>
 
