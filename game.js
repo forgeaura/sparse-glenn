@@ -1,8 +1,30 @@
 // Switch Card Game - Game Logic
 
+const SUPABASE_URL = 'https://ypwjvzybxbsubixlslsz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_DBHsEayqtgagTjrsm9nk-w_WpcYb3OU';
+const sb = (typeof window.supabase !== 'undefined') ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const VALUES = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'Joker': 20 };
+
+async function signInWithGoogle() {
+    if (!sb) return alert("Supabase not initialized");
+    const { data, error } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin
+        }
+    });
+    if (error) console.error("Sign in error:", error.message);
+}
+
+async function signOut() {
+    if (!sb) return;
+    const { error } = await sb.auth.signOut();
+    if (error) console.error("Sign out error:", error.message);
+    else location.reload(); // Reload to clear states
+}
 
 class Card {
     constructor(suit, rank) {
@@ -179,6 +201,46 @@ class Game {
         
         this.draggedCardId = null;
         this.selectedCardIndex = null;
+        
+        this.user = null;
+        this.setupAuth();
+    }
+
+    async setupAuth() {
+        if (!sb) {
+            document.getElementById('auth-status').innerText = "Sync Offline (Local Only)";
+            return;
+        }
+
+        const { data: { session } } = await sb.auth.getSession();
+        this.handleAuthStateChange(session);
+
+        sb.auth.onAuthStateChange((_event, session) => {
+            this.handleAuthStateChange(session);
+        });
+    }
+
+    async handleAuthStateChange(session) {
+        const loginBtn = document.getElementById('login-btn');
+        const userInfo = document.getElementById('user-info');
+        const userName = document.getElementById('user-name');
+        const authStatus = document.getElementById('auth-status');
+
+        if (session) {
+            this.user = session.user;
+            loginBtn.classList.add('hidden');
+            userInfo.classList.remove('hidden');
+            userName.innerText = this.user.user_metadata.full_name || this.user.email;
+            authStatus.innerText = "Cloud Sync Active";
+            
+            // On login, try to load from cloud
+            await this.loadFromCloud();
+        } else {
+            this.user = null;
+            loginBtn.classList.remove('hidden');
+            userInfo.classList.add('hidden');
+            authStatus.innerText = "Sign in to sync scores";
+        }
     }
 
     saveState() {
@@ -189,6 +251,66 @@ class Game {
             showPlayableHighlight: this.showPlayableHighlight
         };
         localStorage.setItem('switch_tournament_state', JSON.stringify(state));
+        
+        if (this.user) {
+            this.syncToCloud();
+        }
+    }
+
+    async syncToCloud() {
+        if (!this.user || !sb) return;
+        
+        const { error } = await sb
+            .from('tournament_scores')
+            .upsert({
+                user_id: this.user.id,
+                player_score: this.playerTotalScore,
+                computer_score: this.computerTotalScore,
+                current_round: this.currentRound,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) {
+            console.error("Cloud Sync Error:", error.message);
+            document.getElementById('auth-status').innerText = "Cloud Sync Error!";
+        } else {
+            document.getElementById('auth-status').innerText = "Cloud Synced";
+        }
+    }
+
+    async loadFromCloud() {
+        if (!this.user || !sb) return;
+
+        const { data, error } = await sb
+            .from('tournament_scores')
+            .select('*')
+            .eq('user_id', this.user.id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is code for 'no rows returned'
+            console.error("Cloud Load Error:", error.message);
+            return;
+        }
+
+        if (data) {
+            // Logic to handle conflict: If cloud is ahead, use it.
+            // For simplicity, we'll prompt if cloud total scores are different.
+            const localSaved = localStorage.getItem('switch_tournament_state');
+            const localState = localSaved ? JSON.parse(localSaved) : null;
+            
+            if (!localState || data.current_round > localState.currentRound || 
+                (data.player_score !== localState.playerTotalScore && confirm("Found a cloud save. Would you like to resume your tournament from the cloud?"))) {
+                
+                this.playerTotalScore = data.player_score;
+                this.computerTotalScore = data.computer_score;
+                this.currentRound = data.current_round;
+                this.updateUI();
+                this.log("Tournament synced from cloud.");
+                
+                // Update local storage backup
+                this.saveState();
+            }
+        }
     }
 
     loadState() {

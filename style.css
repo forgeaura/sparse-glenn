@@ -187,6 +187,25 @@ body::after {
     gap: 20px;
 }
 
+.user-profile {
+    padding: 15px;
+    border-radius: 15px;
+    text-align: center;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.05);
+}
+ 
+#auth-status {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-bottom: 8px;
+}
+ 
+#user-name {
+    color: var(--accent);
+    font-weight: 600;
+}
+
 .score-board h2 {
     font-size: 1.2rem;
     margin-bottom: 10px;

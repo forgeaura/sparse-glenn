@@ -11,10 +11,18 @@
 </head>
 <body>
     <div id="game-container">
-        <!-- Removed initial overlay for persistent tournament -->
-
+        <!-- Supabase Auth UI -->
         <div id="game-board">
             <div class="sidebar left glass">
+                <div id="user-profile" class="user-profile glass">
+                    <div id="auth-status">Checking auth...</div>
+                    <button id="login-btn" class="btn btn-small" onclick="signInWithGoogle()">Sign in with Google</button>
+                    <div id="user-info" class="hidden">
+                        <p>Hi, <span id="user-name">Player</span>!</p>
+                        <button class="btn btn-small btn-outline" onclick="signOut()">Sign Out</button>
+                    </div>
+                </div>
+
                 <div class="score-board">
                     <h2>Tournament Score</h2>
                     <div class="score-row">
@@ -120,6 +128,7 @@
         </div>
 
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="game.js"></script>
 </body>
 </html>
