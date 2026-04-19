@@ -78,15 +78,18 @@ body::after {
 
 .overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 100;
+}
+
+.no-scroll {
+    overflow: hidden !important;
 }
 
 .hidden {
@@ -171,6 +174,18 @@ body::after {
     border-color: var(--accent);
 }
 
+
+/* Hamburger button — hidden on desktop, shown on mobile */
+.hamburger-btn {
+    display: none;
+}
+
+/* Mobile menu wrapper — transparent flex column on desktop */
+.mobile-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
 
 #game-board {
     display: flex;
@@ -384,15 +399,32 @@ body::after {
     color: var(--accent);
 }
 
-.card.playable {
-    box-shadow: 0 0 15px 5px var(--accent);
-    animation: pulsePlayable 2s infinite;
+.card.playable::before {
+    content: '▲';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--accent);
+    font-size: 12px;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 20;
+    text-shadow: 0 0 8px var(--accent);
+    animation: pulseIndicator 1.2s ease-in-out infinite;
 }
 
-@keyframes pulsePlayable {
-    0% { box-shadow: 0 0 15px 2px var(--accent); }
-    50% { box-shadow: 0 0 25px 8px var(--accent); }
-    100% { box-shadow: 0 0 15px 2px var(--accent); }
+@keyframes pulseIndicator {
+    0%, 100% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0px);
+        text-shadow: 0 0 8px var(--accent);
+    }
+    50% {
+        opacity: 0.5;
+        transform: translateX(-50%) translateY(-3px);
+        text-shadow: 0 0 4px var(--accent);
+    }
 }
 
 
@@ -546,6 +578,10 @@ body::after {
     transform: scale(1.1);
 }
 
+.suit-buttons button.suit-red {
+    color: #d32f2f;
+}
+
 /* Animations */
 @keyframes deal {
     from {
@@ -564,81 +600,216 @@ body::after {
 
 /* Mobile Responsiveness */
 @media screen and (max-width: 768px) {
-    body {
-        overflow-y: auto;
-        height: auto;
-        min-height: 100vh;
+    html, body {
+        overflow: hidden;
+        height: 100vh;
+        height: 100dvh; /* dvh accounts for browser chrome shrinking on scroll */
+        max-width: 100vw;
+        touch-action: none;
+    }
+
+    #game-container {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        touch-action: none;
     }
 
     #game-board {
         flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
     }
 
+    /* Sidebar: single-row strip at the bottom */
     .sidebar {
-        width: calc(100% - 40px);
-        margin: 10px 20px;
-        order: 2; /* Sidebar after main area for better mobile flow */
-        padding: 15px;
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+        padding: 6px 12px;
+        order: 1;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        position: relative;
     }
 
-    .sidebar h2 {
-        font-size: 1rem;
+    .score-board {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .score-board h2 {
+        display: none;
     }
 
     .score-row {
-        font-size: 1.1rem;
+        font-size: 0.9rem;
+        margin-bottom: 0;
+        gap: 3px;
+        white-space: nowrap;
     }
 
+    .round-indicator {
+        font-size: 0.7rem;
+        margin-top: 0;
+        opacity: 0.7;
+        white-space: nowrap;
+    }
+
+    /* Hide game log on mobile */
     .game-log {
-        height: 120px;
-        flex-grow: 0;
+        display: none;
     }
 
+    /* Hamburger button */
+    .hamburger-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 1px solid var(--glass-border);
+        color: var(--text);
+        border-radius: 8px;
+        width: 36px;
+        height: 36px;
+        font-size: 1.2rem;
+        cursor: pointer;
+        flex-shrink: 0;
+        padding: 0;
+    }
+
+    /* Mobile dropdown — ID selector beats all class rules */
+    #mobile-menu {
+        display: none;
+        position: absolute;
+        bottom: 100%;
+        top: auto;
+        left: 0;
+        right: 0;
+        z-index: 200;
+        background: rgb(10, 10, 10);
+        border-top: 1px solid var(--glass-border);
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #mobile-menu.open {
+        display: flex;
+    }
+
+    /* Settings inside dropdown */
+    #mobile-menu .settings {
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border: none;
+        box-shadow: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    #mobile-menu .settings h3 {
+        display: none;
+    }
+
+    #mobile-menu .setting-row {
+        margin-bottom: 0;
+        gap: 4px;
+        font-size: 0.85rem;
+    }
+
+    .btn-small {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.75rem;
+        width: auto;
+        margin: 0;
+    }
+
+    /* Main game area: anchored to bottom, opponent hand pushed to top */
     .main-area {
-        padding: 20px 10px;
-        min-height: 80vh;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 8px 10px 28dvh;
+        overflow: hidden;
+    }
+
+    /* Full width on all three game zones so internal centering works */
+    .opponent-hand,
+    .center-pile,
+    .player-area {
+        width: 100%;
+        flex-shrink: 0;
+    }
+
+    /* auto bottom margin absorbs all free space, pushing opponent hand to top */
+    .opponent-hand {
+        margin-bottom: auto;
+    }
+
+    /* gap between centre pile and player hand — centres pile between the two hands */
+    .center-pile {
+        margin-bottom: 14dvh;
+    }
+
+    /* Remove desktop min-height that wastes vertical space on mobile */
+    .opponent-hand, .player-hand {
+        min-height: unset;
     }
 
     /* Smaller cards for mobile */
     .card {
-        width: 70px;
-        height: 105px;
+        width: 65px;
+        height: 97px;
         border-radius: 6px;
     }
 
     .player-hand .card:not(:last-child) {
-        margin-right: -30px;
+        margin-right: -28px;
     }
 
     .opponent-hand .card:not(:last-child) {
-        margin-right: -45px;
+        margin-right: -42px;
     }
 
     .card-rank, .card-suit {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
 
     .card-center {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
     }
 
     .card-artwork {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
     }
 
     .draw-count {
-        bottom: -25px;
-        font-size: 0.8rem;
+        bottom: -22px;
+        font-size: 0.75rem;
     }
 
     .center-pile {
-        gap: 20px;
-        margin: 20px 0;
+        gap: 16px;
     }
 
     .suit-selector {
-        bottom: 120px;
+        bottom: 100px;
         width: 90%;
         padding: 10px;
     }
@@ -659,6 +830,26 @@ body::after {
     }
 }
 
+/* Extra-small screens (e.g. iPhone SE, Galaxy A series) */
+@media screen and (max-width: 380px) {
+    .card {
+        width: 55px;
+        height: 82px;
+    }
+
+    .player-hand .card:not(:last-child) {
+        margin-right: -24px;
+    }
+
+    .opponent-hand .card:not(:last-child) {
+        margin-right: -38px;
+    }
+
+    .score-row {
+        font-size: 0.8rem;
+    }
+}
+
 /* Juice Animations */
 @keyframes shake {
     0%, 100% { transform: translateX(0); }
@@ -674,5 +865,124 @@ body::after {
 .shake-danger {
     animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
     border: 2px solid var(--danger);
+}
+
+/* ── Auth sidebar section ───────────────────────────────────────────────── */
+.auth-section {
+    padding: 14px 16px;
+    border-radius: 15px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.auth-hint {
+    opacity: 0.65;
+    margin-bottom: 10px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.auth-user-email {
+    font-size: 0.75rem;
+    word-break: break-all;
+    margin-bottom: 8px;
+    color: var(--accent);
+}
+
+/* ── Auth modal ─────────────────────────────────────────────────────────── */
+.auth-subtitle {
+    opacity: 0.6;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 1.25rem 0;
+    min-width: 280px;
+}
+
+.auth-input {
+    padding: 0.7rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font-size: 1rem;
+    font-family: 'Outfit', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.auth-input:focus {
+    border-color: var(--accent);
+}
+
+.auth-input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.auth-error {
+    color: var(--danger);
+    font-size: 0.85rem;
+    text-align: left;
+    margin: 0;
+}
+
+.auth-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.btn-google {
+    background: #fff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-weight: 500;
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.btn-google:hover { background: #f8f9fa; }
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.8rem;
+    margin: 0.25rem 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--glass-border);
+}
+
+@media screen and (max-width: 768px) {
+    .auth-section {
+        padding: 8px 10px;
+        border-radius: 8px;
+    }
+    .auth-hint {
+        display: none;
+    }
+    .auth-user-email {
+        font-size: 0.7rem;
+        margin-bottom: 4px;
+    }
 }
 
