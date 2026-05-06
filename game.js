@@ -490,12 +490,42 @@ class Game {
 
     reshuffle() {
         if (this.discardPile.length <= 1) return false;
-        this.log("Reshuffling discard pile...");
+
+        // Show reshuffle notification
+        this.showReshuffleNotification();
+
+        // Add animation to draw pile
+        const drawPileEl = document.getElementById('draw-pile');
+        if (drawPileEl) {
+            drawPileEl.classList.add('reshuffling');
+            setTimeout(() => drawPileEl.classList.remove('reshuffling'), 1200);
+        }
+
+        // Add animation to discard pile cards
+        const discardPileEl = document.getElementById('discard-pile');
+        if (discardPileEl) {
+            const cards = discardPileEl.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.classList.add('reshuffling');
+                setTimeout(() => card.classList.remove('reshuffling'), 800);
+            });
+        }
+
+        this.log("🔄 Deck reshuffled!");
         const topCard = this.discardPile.pop();
         this.deck.cards = [...this.discardPile];
         this.deck.shuffle();
         this.discardPile = [topCard];
         return true;
+    }
+
+    showReshuffleNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'reshuffle-notification';
+        notification.innerHTML = '🔄 Reshuffling Deck...';
+        document.body.appendChild(notification);
+
+        setTimeout(() => notification.remove(), 1600);
     }
 
     selectSuit(suit) {
