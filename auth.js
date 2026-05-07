@@ -117,8 +117,9 @@ function clearAuthError() {
 function friendlyError(message) {
     if (!message) return 'Something went wrong. Please try again.';
     const m = message.toLowerCase();
-    if (m.includes('invalid login') || m.includes('invalid email or password') || m.includes('email not confirmed')) return 'Invalid email or password.';
-    if (m.includes('already registered') || m.includes('already exists')) return 'An account with this email already exists.';
+    if (m.includes('email not confirmed')) return 'Please confirm your email first — check your inbox for the verification link.';
+    if (m.includes('invalid login') || m.includes('invalid email or password') || m.includes('invalid credentials')) return 'Invalid email or password.';
+    if (m.includes('already registered') || m.includes('already exists') || m.includes('user already')) return 'An account with this email already exists. Try signing in instead.';
     if (m.includes('password should be')) return 'Password must be at least 6 characters.';
     if (m.includes('valid email') || m.includes('invalid email')) return 'Please enter a valid email address.';
     if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts. Please try again later.';
@@ -184,6 +185,15 @@ const AuthManager = {
             if (this._isRegisterMode) {
                 const { data, error } = await client.auth.signUp({ email, password });
                 if (error) { showAuthError(friendlyError(error.message)); return; }
+                // If the project requires email confirmation, signUp succeeds but
+                // returns NO session. Do NOT mark the user as signed in — they need
+                // to click the link in their inbox first.
+                if (!data.session) {
+                    showAuthError(
+                        `Account created. Check ${email} for a confirmation link, click it, then come back here and sign in.`
+                    );
+                    return;
+                }
                 this._cachedUser = data.user;
                 // Upload current local state so new account keeps existing progress
                 if (window.game && data.user) {
