@@ -9,6 +9,25 @@
     let pollHandle = null;        // setInterval id for lobby seat refresh (until subscribed)
     let pendingApprovalCode = null; // Code we've requested but not yet been approved for
     let pendingPollHandle = null;   // setInterval for retrying join after approval
+    let createInFlight = false;     // Guard against re-entrant onCreate calls
+
+    // ── On-screen diagnostics: capture errors so mobile users can see them ──
+    function logDiag(label, detail) {
+        const el = $('setup-error');
+        if (!el) return;
+        const line = `[${label}] ${detail}`.slice(0, 800);
+        el.textContent = line;
+        el.classList.remove('hidden');
+        try { console.error(line); } catch (_) {}
+    }
+    window.addEventListener('error', (ev) => {
+        logDiag('JS error', `${ev.message} (${ev.filename}:${ev.lineno})`);
+    });
+    window.addEventListener('unhandledrejection', (ev) => {
+        const r = ev.reason;
+        const msg = r?.message || (typeof r === 'string' ? r : JSON.stringify(r));
+        logDiag('Unhandled', msg);
+    });
 
     function showSetup() {
         $('setup-screen')?.classList.remove('hidden');
@@ -192,9 +211,12 @@
 
     // ── Create flow ──────────────────────────────────────────────────────────
     async function onCreate() {
+        if (createInFlight) return;     // prevent re-entrant calls from the auto-create poller
+        createInFlight = true;
         clearError();
         if (!window.AuthManager?.currentUser) {
             showError('Please sign in to create a multiplayer room.');
+            createInFlight = false;
             return;
         }
         const dropPolicy = document.querySelector('input[name="drop-policy"]:checked')?.value || 'convert';
@@ -203,10 +225,16 @@
         const name       = ($('setup-room-name')?.value || '').trim() || null;
         $('setup-room-code').textContent = '…';
         try {
-            const code = await window.MP.createRoom({
-                dropPolicy, kind, joinPolicy, name,
-                displayName: window.AuthManager.currentUser.email?.split('@')[0] || 'Player',
-            });
+            // 15s overall timeout so a hung request becomes a visible error.
+            const code = await Promise.race([
+                window.MP.createRoom({
+                    dropPolicy, kind, joinPolicy, name,
+                    displayName: window.AuthManager.currentUser.email?.split('@')[0] || 'Player',
+                }),
+                new Promise((_, reject) => setTimeout(
+                    () => reject(new Error('timeout: Supabase RPC took >15s — schema cache stale or function missing?')),
+                    15000)),
+            ]);
             createCode = code;
             mySeatIndex = 0;
             $('setup-room-code').textContent = code;
@@ -217,7 +245,10 @@
             pollHandle = setInterval(refreshLobbySeats, 3000);
         } catch (e) {
             $('setup-room-code').textContent = '—';
-            showError(`Could not create room: ${e.message}. (Did you run migrations 001 + 002 in Supabase?)`);
+            const detail = e?.message || JSON.stringify(e);
+            showError(`Could not create room: ${detail}. (Run migrations 001+002 in Supabase, then SQL: notify pgrst, 'reload schema';)`);
+        } finally {
+            createInFlight = false;
         }
     }
 
