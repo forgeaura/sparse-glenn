@@ -68,14 +68,16 @@
     function updateCapCounter(seats) {
         const el = $('seat-cap-counter');
         if (!el) return;
-        const humans = seats.filter(s => s.player_type === 'human').length;
-        const ais = seats.filter(s => s.player_type === 'ai').length;
-        const cap = humans * (window.MP?.AI_CAP_PER_HUMAN ?? 7);
-        el.textContent = `(${ais} AI / ${cap} max)`;
+        const myId = window.AuthManager?.currentUser?.id;
+        const cap = window.MP?.AI_CAP_PER_HUMAN ?? 7;
+        const myAIs = seats.filter(s => s.player_type === 'ai' && s.added_by === myId).length;
+        const totalAIs = seats.filter(s => s.player_type === 'ai').length;
+        el.textContent = `(your AI: ${myAIs}/${cap}; room total: ${totalAIs})`;
+        const atCap = myAIs >= cap;
         const addBtn = $('setup-add-ai');
-        if (addBtn) addBtn.disabled = ais >= cap;
+        if (addBtn) addBtn.disabled = atCap;
         const addBtn2 = $('setup-join-add-ai');
-        if (addBtn2) addBtn2.disabled = ais >= cap;
+        if (addBtn2) addBtn2.disabled = atCap;
     }
 
     async function refreshLobbySeats() {

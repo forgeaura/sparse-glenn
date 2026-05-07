@@ -22,8 +22,11 @@ create table if not exists room_seats (
     user_id      uuid references auth.users(id),
     display_name text not null,
     is_present   boolean not null default true,
+    added_by     uuid references auth.users(id), -- which human seated this AI (null for humans)
     primary key (room_code, seat_index)
 );
+-- For existing rooms that pre-date the column:
+alter table room_seats add column if not exists added_by uuid references auth.users(id);
 
 create unique index if not exists room_seats_user_unique
     on room_seats (room_code, user_id) where user_id is not null;
@@ -226,7 +229,8 @@ end;
 $$;
 
 -- ─── RPC: add_ai_seat ───────────────────────────────────────────────────────
--- Adds an AI seat if doing so keeps aiCount <= humanCount * 7. Returns new seat_index, or NULL.
+-- Per-human budget: each human can add up to 7 AI seats (tracked via added_by).
+-- Returns new seat_index, or NULL if THIS human has already used their budget.
 create or replace function add_ai_seat(
     p_code         text,
     p_display_name text
@@ -237,8 +241,7 @@ set search_path = public
 as $$
 declare
     v_status     text;
-    v_humans     int;
-    v_ais        int;
+    v_my_ais     int;
     v_seat_index int;
 begin
     if not is_room_member(p_code) then
@@ -250,20 +253,21 @@ begin
         raise exception 'cannot modify seats outside lobby' using errcode = '55000';
     end if;
 
-    select count(*) filter (where player_type = 'human'),
-           count(*) filter (where player_type = 'ai')
-      into v_humans, v_ais
-      from room_seats where room_code = p_code;
+    select count(*) into v_my_ais
+      from room_seats
+     where room_code = p_code
+       and player_type = 'ai'
+       and added_by = auth.uid();
 
-    if v_ais >= v_humans * 7 then
-        return null; -- cap reached
+    if v_my_ais >= 7 then
+        return null; -- this human's budget is exhausted
     end if;
 
     select coalesce(max(seat_index) + 1, 0) into v_seat_index
         from room_seats where room_code = p_code;
 
-    insert into room_seats (room_code, seat_index, player_type, user_id, display_name)
-        values (p_code, v_seat_index, 'ai', null, p_display_name);
+    insert into room_seats (room_code, seat_index, player_type, user_id, display_name, added_by)
+        values (p_code, v_seat_index, 'ai', null, p_display_name, auth.uid());
 
     return v_seat_index;
 end;
@@ -271,38 +275,29 @@ $$;
 
 -- ─── RPC: start_room ────────────────────────────────────────────────────────
 -- Transitions the room from 'lobby' to 'playing'. Caller must be seated.
--- Auto-prunes excess AI seats if humans left and ratio is now exceeded.
+-- Auto-prunes orphaned AI seats — i.e. AIs whose sponsoring human (added_by)
+-- has left the lobby. (Sponsor present => AI stays; sponsor gone => AI goes.)
 create or replace function start_room(p_code text)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-    v_humans int;
-    v_ais    int;
-    v_excess int;
 begin
     if not is_room_member(p_code) then
         raise exception 'not a member of room %', p_code using errcode = '42501';
     end if;
 
-    select count(*) filter (where player_type = 'human'),
-           count(*) filter (where player_type = 'ai')
-      into v_humans, v_ais
-      from room_seats where room_code = p_code;
-
-    v_excess := v_ais - v_humans * 7;
-    if v_excess > 0 then
-        delete from room_seats
-         where room_code = p_code
-           and seat_index in (
-               select seat_index from room_seats
-                where room_code = p_code and player_type = 'ai'
-                order by seat_index desc
-                limit v_excess
-           );
-    end if;
+    delete from room_seats ai
+     where ai.room_code = p_code
+       and ai.player_type = 'ai'
+       and ai.added_by is not null
+       and not exists (
+           select 1 from room_seats h
+            where h.room_code = p_code
+              and h.player_type = 'human'
+              and h.user_id = ai.added_by
+       );
 
     update rooms set status = 'playing', updated_at = now() where code = p_code;
 end;

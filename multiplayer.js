@@ -98,15 +98,15 @@
 
     async function addAISeat(code) {
         const seats = await listSeats(code);
-        const humans = seats.filter(s => s.player_type === 'human').length;
-        const ais = seats.filter(s => s.player_type === 'ai').length;
-        if (ais >= humans * AI_CAP_PER_HUMAN) {
-            throw new Error(`AI cap reached (${humans} humans × ${AI_CAP_PER_HUMAN}).`);
+        const myId = window.AuthManager?.currentUser?.id;
+        const myAIs = seats.filter(s => s.player_type === 'ai' && s.added_by === myId).length;
+        if (myAIs >= AI_CAP_PER_HUMAN) {
+            throw new Error(`You've already added ${AI_CAP_PER_HUMAN} AI seats (your max).`);
         }
-        const display = `Bot ${ais + 1}`;
+        const display = `Bot ${seats.filter(s => s.player_type === 'ai').length + 1}`;
         const { data, error } = await sb().rpc('add_ai_seat', { p_code: code, p_display_name: display });
         if (error) throw new Error(error.message);
-        if (data == null) throw new Error('AI cap reached.');
+        if (data == null) throw new Error(`You've already added ${AI_CAP_PER_HUMAN} AI seats (your max).`);
         return data;
     }
 
