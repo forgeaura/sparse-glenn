@@ -363,15 +363,27 @@
     // ── My Rooms tab ─────────────────────────────────────────────────────────
     async function refreshMyRooms() {
         if (!window.AuthManager?.currentUser) return;
+        // Always render an empty list/stats first so the panel never shows up
+        // completely blank — even if both RPCs fail.
+        renderLifetimeStats(null);
+        renderMyRooms([]);
+        let errs = [];
+        let rooms = [];
+        let stats = null;
         try {
-            const [rooms, stats] = await Promise.all([
-                window.MP.listMyRooms(),
-                window.MP.getMyLifetimeStats(),
-            ]);
-            renderLifetimeStats(stats);
-            renderMyRooms(rooms);
+            rooms = await window.MP.listMyRooms();
         } catch (e) {
-            console.warn('My Rooms refresh failed:', e.message);
+            errs.push(`list_my_rooms: ${e.message}`);
+        }
+        try {
+            stats = await window.MP.getMyLifetimeStats();
+        } catch (e) {
+            errs.push(`user_lifetime_stats: ${e.message}`);
+        }
+        renderLifetimeStats(stats);
+        renderMyRooms(rooms);
+        if (errs.length) {
+            showError(`Could not load My Rooms (${errs.join('; ')}). Check that migration 002 fully applied and run "notify pgrst, 'reload schema';" in Supabase SQL Editor.`);
         }
     }
 
