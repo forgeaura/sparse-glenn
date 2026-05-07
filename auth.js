@@ -223,6 +223,12 @@ const AuthManager = {
     },
 
     async signOut() {
+        // If we're inside a multiplayer room, disconnect and return to setup
+        // before clearing auth — otherwise the user is left stranded on the
+        // game board with no way back.
+        if (window.MP?.active && window.leaveOnlineRoom) {
+            try { window.leaveOnlineRoom(); } catch (_) {}
+        }
         await client.auth.signOut();
         this._cachedUser = null;
         updateSidebarAuthUI(null);

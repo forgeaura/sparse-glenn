@@ -494,6 +494,28 @@
         $('setup-join-start').onclick = onStart;
         $('setup-start-game').onclick = onStart;
 
+        // In-game room bar buttons (Copy / Leave).
+        const onlineCopy = $('online-copy-code');
+        if (onlineCopy) onlineCopy.onclick = () => {
+            const code = $('online-room-code')?.textContent || '';
+            if (!code || code === '—') return;
+            navigator.clipboard?.writeText(code).then(() => {
+                onlineCopy.textContent = 'Copied!';
+                setTimeout(() => onlineCopy.textContent = 'Copy', 1200);
+            });
+        };
+        const onlineLeave = $('online-leave-room');
+        if (onlineLeave) onlineLeave.onclick = () => {
+            if (!confirm('Leave this room? Your seat will be released. You can rejoin anytime with the same code.')) return;
+            createCode = null;
+            joinCode = null;
+            mySeatIndex = null;
+            createAttempted = false;
+            if (pollHandle) { clearInterval(pollHandle); pollHandle = null; }
+            if (pendingPollHandle) { clearInterval(pendingPollHandle); pendingPollHandle = null; }
+            window.leaveOnlineRoom?.();
+        };
+
         setInterval(() => {
             refreshAuthBanners();
             maybeAutoCreate();

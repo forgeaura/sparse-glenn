@@ -1213,6 +1213,28 @@ body::after {
 }
 .setup-auth-banner p { margin: 0 0 8px; font-size: 0.9rem; }
 
+/* ── Online room indicator bar (visible during multiplayer games) ──────── */
+.online-room-bar {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(20, 22, 30, 0.92);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 8px 12px;
+    border-radius: 10px;
+    backdrop-filter: blur(6px);
+    font-size: 0.85rem;
+}
+.online-room-bar.hidden { display: none; }
+.online-room-label { opacity: 0.6; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.online-room-code { font-family: 'Courier New', monospace; font-weight: 700; letter-spacing: 0.1em; flex: 1; }
+.online-room-bar .btn { font-size: 0.78rem; padding: 4px 10px; }
+
 /* ── Persistent rooms / admin controls / pending requests ───────────────── */
 .setup-pending-banner {
     background: rgba(255,200,80,0.12);
