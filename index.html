@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Switch Card Game</title>
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -20,14 +20,29 @@
 
                 <div class="setup-tabs" role="tablist">
                     <button class="setup-tab active" data-tab="solo">Solo</button>
-                    <button class="setup-tab" data-tab="create">Create Room</button>
-                    <button class="setup-tab" data-tab="join">Join Room</button>
+                    <button class="setup-tab" data-tab="mine">My Rooms</button>
+                    <button class="setup-tab" data-tab="create">Create</button>
+                    <button class="setup-tab" data-tab="join">Join</button>
                 </div>
 
                 <!-- Solo tab -->
                 <div class="setup-pane" data-pane="solo">
                     <p class="setup-hint">A quick game against the computer. No sign-in required.</p>
                     <button class="btn" id="setup-solo-start">Start Solo Game</button>
+                </div>
+
+                <!-- My Rooms tab -->
+                <div class="setup-pane hidden" data-pane="mine">
+                    <div id="setup-auth-required-mine" class="setup-auth-banner hidden">
+                        <p>Sign in to see your saved rooms and lifetime score.</p>
+                        <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                    </div>
+                    <div id="setup-mine-content" class="hidden">
+                        <div id="setup-lifetime-stats" class="lifetime-stats"></div>
+                        <p class="setup-hint">Rooms you've joined. Click a room to resume.</p>
+                        <div id="setup-my-rooms" class="my-rooms"></div>
+                        <p id="setup-my-rooms-empty" class="setup-hint hidden">No rooms yet. Create one or join with a code.</p>
+                    </div>
                 </div>
 
                 <!-- Create tab -->
@@ -38,6 +53,24 @@
                     </div>
                     <div id="setup-create-form">
                         <div class="setup-field">
+                            <label for="setup-room-name">Room name (optional)</label>
+                            <input id="setup-room-name" type="text" maxlength="40" placeholder="e.g. Family game" class="auth-input" />
+                        </div>
+                        <div class="setup-field">
+                            <label>Type</label>
+                            <div class="drop-policy-row">
+                                <label><input type="radio" name="room-kind" value="one_off" checked> One-off (single session)</label>
+                                <label><input type="radio" name="room-kind" value="persistent"> Persistent (running score across sessions)</label>
+                            </div>
+                        </div>
+                        <div class="setup-field">
+                            <label>Who can join?</label>
+                            <div class="drop-policy-row">
+                                <label><input type="radio" name="join-policy" value="open" checked> Anyone with the code</label>
+                                <label><input type="radio" name="join-policy" value="approval"> Approval required (admins must let people in)</label>
+                            </div>
+                        </div>
+                        <div class="setup-field">
                             <label>Room code</label>
                             <div class="room-code-display">
                                 <span id="setup-room-code">—</span>
@@ -46,7 +79,7 @@
                             <p class="setup-hint">Share this code with friends so they can join.</p>
                         </div>
                         <div class="setup-field">
-                            <label>Drop policy</label>
+                            <label>If a player drops mid-game</label>
                             <div class="drop-policy-row">
                                 <label><input type="radio" name="drop-policy" value="convert" checked> Convert dropped human to AI</label>
                                 <label><input type="radio" name="drop-policy" value="pause"> Pause and wait</label>
@@ -59,6 +92,11 @@
                             <div class="seat-actions">
                                 <button class="btn btn-small" id="setup-add-ai">+ Add AI</button>
                             </div>
+                        </div>
+                        <div class="setup-field admin-pane hidden" id="setup-admin-pane">
+                            <label>Members & requests</label>
+                            <div id="setup-pending-list" class="pending-list"></div>
+                            <div id="setup-member-list" class="member-list"></div>
                         </div>
                         <button class="btn" id="setup-start-game">Start Game</button>
                     </div>
@@ -76,6 +114,9 @@
                             <input id="setup-join-code" type="text" maxlength="6" placeholder="ABC123" class="auth-input" autocapitalize="characters" />
                         </div>
                         <button class="btn" id="setup-join-btn">Join Room</button>
+                        <div id="setup-join-pending" class="hidden setup-pending-banner">
+                            <p>⏳ Waiting for an admin to approve your request…</p>
+                        </div>
                         <div id="setup-join-lobby" class="hidden">
                             <hr/>
                             <p>You're in! Waiting for the room to start…</p>

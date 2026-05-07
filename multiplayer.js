@@ -35,7 +35,7 @@
     }
 
     // ── Lobby: create / join / add AI / start ─────────────────────────────────
-    async function createRoom({ dropPolicy, displayName }) {
+    async function createRoom({ dropPolicy, displayName, name, kind, joinPolicy }) {
         const user = window.AuthManager?.currentUser;
         if (!user) throw new Error('Sign in to play multiplayer.');
         // Try a few codes in case of (rare) collision.
@@ -45,6 +45,9 @@
                 p_code: code,
                 p_drop_policy: dropPolicy || 'convert',
                 p_display_name: displayName || (user.email?.split('@')[0]) || 'Player',
+                p_name: name || null,
+                p_kind: kind || 'one_off',
+                p_join_policy: joinPolicy || 'open',
             });
             if (!error) return code;
             if (!String(error.message || '').toLowerCase().includes('duplicate')) {
@@ -62,8 +65,99 @@
             p_code: code,
             p_display_name: displayName || (user.email?.split('@')[0]) || 'Player',
         });
-        if (error) throw new Error(error.message || 'Failed to join.');
+        if (error) {
+            const msg = error.message || '';
+            if (msg.includes('pending_approval')) {
+                const e = new Error('pending_approval');
+                e.code = 'pending_approval';
+                throw e;
+            }
+            if (msg.includes('invite_required')) {
+                const e = new Error('invite_required');
+                e.code = 'invite_required';
+                throw e;
+            }
+            if (msg.includes('banned')) {
+                const e = new Error('banned');
+                e.code = 'banned';
+                throw e;
+            }
+            throw new Error(msg || 'Failed to join.');
+        }
         return data; // seat_index
+    }
+
+    async function listMyRooms() {
+        if (!window.AuthManager?.currentUser) return [];
+        const { data, error } = await sb().rpc('list_my_rooms');
+        if (error) throw new Error(error.message);
+        return data || [];
+    }
+
+    async function listMembers(code) {
+        const { data, error } = await sb().rpc('list_room_members', { p_code: code });
+        if (error) throw new Error(error.message);
+        return data || [];
+    }
+
+    async function approveJoin(code, userId) {
+        const { error } = await sb().rpc('approve_join', { p_code: code, p_user_id: userId });
+        if (error) throw new Error(error.message);
+    }
+
+    async function denyJoin(code, userId) {
+        const { error } = await sb().rpc('deny_join', { p_code: code, p_user_id: userId });
+        if (error) throw new Error(error.message);
+    }
+
+    async function setMemberRole(code, userId, role) {
+        const { error } = await sb().rpc('set_member_role', {
+            p_code: code, p_user_id: userId, p_role: role,
+        });
+        if (error) throw new Error(error.message);
+    }
+
+    async function kickMember(code, userId, ban = false) {
+        const { error } = await sb().rpc('kick_member', {
+            p_code: code, p_user_id: userId, p_ban: ban,
+        });
+        if (error) throw new Error(error.message);
+    }
+
+    async function leaveRoom(code) {
+        const { error } = await sb().rpc('leave_room', { p_code: code });
+        if (error) throw new Error(error.message);
+    }
+
+    async function pauseRoom(code) {
+        const { error } = await sb().rpc('pause_room', { p_code: code });
+        if (error) throw new Error(error.message);
+    }
+
+    async function resumeRoom(code) {
+        const { error } = await sb().rpc('resume_room', { p_code: code });
+        if (error) throw new Error(error.message);
+    }
+
+    async function recordRoundResult(code, roundNumber, seatScores) {
+        const { error } = await sb().rpc('record_round_result', {
+            p_code: code,
+            p_round_number: roundNumber,
+            p_seat_scores: seatScores,
+        });
+        if (error) console.warn('record_round_result failed:', error.message);
+    }
+
+    async function getMyLifetimeStats() {
+        const user = window.AuthManager?.currentUser;
+        if (!user) return null;
+        const { data, error } = await sb()
+            .from('user_lifetime_stats')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (error) { console.warn(error.message); return null; }
+        return data;
     }
 
     async function listSeats(code) {
@@ -629,7 +723,18 @@
         enterRoom,
         commitMove,
         requestNextRound,
-        leaveRoom: clearActive,
+        disconnect: clearActive,            // client-side channel cleanup
+        listMyRooms,
+        listMembers,
+        approveJoin,
+        denyJoin,
+        setMemberRole,
+        kickMember,
+        leaveRoom,                          // server-side: exit a persistent room permanently
+        pauseRoom,
+        resumeRoom,
+        recordRoundResult,
+        getMyLifetimeStats,
         get active() { return active; },
         AI_CAP_PER_HUMAN,
     };
