@@ -11,6 +11,7 @@
     let pendingPollHandle = null;   // setInterval for retrying join after approval
     let createInFlight = false;     // Guard against re-entrant onCreate calls
     let createAttempted = false;    // True once we've tried (success or fail); stops retry-loops
+    let activeTabName = 'solo';     // Tracks the currently-active tab so async errors can suppress themselves
 
     // ── On-screen diagnostics: capture errors so mobile users can see them ──
     function logDiag(label, detail) {
@@ -45,6 +46,7 @@
     function clearError() { showError(''); }
 
     function activateTab(name) {
+        activeTabName = name;
         document.querySelectorAll('.setup-tab').forEach(b => {
             b.classList.toggle('active', b.dataset.tab === name);
         });
@@ -247,6 +249,14 @@
             pollHandle = setInterval(refreshLobbySeats, 3000);
         } catch (e) {
             $('setup-room-code').textContent = '—';
+            // If the user has navigated away from the create tab, the error no
+            // longer matches the screen they're on — suppress it instead of
+            // hijacking another tab's error banner.
+            if (activeTabName !== 'create') {
+                console.warn('createRoom failed but user switched tabs:', e?.message);
+                createInFlight = false;
+                return;
+            }
             const detail = e?.message || JSON.stringify(e);
             if (/auth required|JWT|not authenticated/i.test(detail)) {
                 showError(
