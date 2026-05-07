@@ -7,7 +7,22 @@
 const SUPABASE_URL = 'https://ypwjvzybxbsubixlslsz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DBHsEayqtgagTjrsm9nk-w_WpcYb3OU';
 
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Use implicit OAuth flow (token in URL fragment) instead of the default PKCE
+// flow (code in URL query, exchanged via a POST that needs a code_verifier
+// from localStorage). PKCE is more secure but breaks easily on static sites
+// in privacy-strict browsers — Brave Shields can clear the code_verifier
+// between the redirect-out and the redirect-back, leaving the user stuck.
+// Implicit flow has no such moving part: the access_token arrives directly
+// in the hash and supabase-js parses it client-side.
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        flowType: 'implicit',
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage,
+    },
+});
 window.SB = client; // shared singleton for multiplayer.js
 
 // ── Database helpers ─────────────────────────────────────────────────────────
@@ -72,6 +87,16 @@ client.auth.onAuthStateChange(async (event, session) => {
     const user = session?.user ?? null;
     AuthManager._cachedUser = user; // Ensure cache is sync
     updateSidebarAuthUI(user);
+
+    // After a successful OAuth sign-in, scrub the auth params out of the URL
+    // so a page refresh doesn't re-process the same callback (and so
+    // detectFailedOAuthCallback doesn't confuse itself on subsequent loads).
+    if (event === 'SIGNED_IN') {
+        try {
+            const url = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, url);
+        } catch (_) {}
+    }
 
     // Surface auth events to the page so the user can see what's happening
     // without needing devtools. This is invaluable when OAuth silently fails.
