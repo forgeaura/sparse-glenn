@@ -10,6 +10,7 @@
     let pendingApprovalCode = null; // Code we've requested but not yet been approved for
     let pendingPollHandle = null;   // setInterval for retrying join after approval
     let createInFlight = false;     // Guard against re-entrant onCreate calls
+    let createAttempted = false;    // True once we've tried (success or fail); stops retry-loops
 
     // ── On-screen diagnostics: capture errors so mobile users can see them ──
     function logDiag(label, detail) {
@@ -213,6 +214,7 @@
     async function onCreate() {
         if (createInFlight) return;     // prevent re-entrant calls from the auto-create poller
         createInFlight = true;
+        createAttempted = true;
         clearError();
         if (!window.AuthManager?.currentUser) {
             showError('Please sign in to create a multiplayer room.');
@@ -246,7 +248,15 @@
         } catch (e) {
             $('setup-room-code').textContent = '—';
             const detail = e?.message || JSON.stringify(e);
-            showError(`Could not create room: ${detail}. (Run migrations 001+002 in Supabase, then SQL: notify pgrst, 'reload schema';)`);
+            if (/auth required|JWT|not authenticated/i.test(detail)) {
+                showError(
+                    `Sign-in didn't complete properly (server says ${detail}). ` +
+                    `This often happens with Google sign-in in incognito because of third-party cookies. ` +
+                    `Click "Sign Out" then sign in again with email/password.`
+                );
+            } else {
+                showError(`Could not create room: ${detail}. (Did you run migrations 001+002 and reload the PostgREST schema?)`);
+            }
         } finally {
             createInFlight = false;
         }
@@ -451,6 +461,7 @@
     function maybeAutoCreate() {
         if (!isCreateTabActive()) return;
         if (createCode) return;
+        if (createAttempted) return;       // don't loop after a failure; wait for explicit user action
         if (!window.AuthManager?.currentUser) return;
         onCreate();
     }
@@ -464,7 +475,11 @@
             b.onclick = () => {
                 const name = b.dataset.tab;
                 activateTab(name);
-                if (name === 'create') maybeAutoCreate();
+                if (name === 'create') {
+                    // Explicit user click should always retry, even after a previous failure.
+                    createAttempted = false;
+                    maybeAutoCreate();
+                }
                 if (name === 'mine')   refreshMyRooms();
             };
         });
