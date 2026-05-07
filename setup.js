@@ -279,11 +279,25 @@
             showError('No room yet — wait for the room code to appear, then try again.');
             return;
         }
+        const buttons = ['setup-add-ai', 'setup-join-add-ai']
+            .map(id => document.getElementById(id))
+            .filter(Boolean);
+        buttons.forEach(b => { b.disabled = true; b.dataset.origText = b.textContent; b.textContent = 'Adding…'; });
         try {
-            await window.MP.addAISeat(code);
+            await Promise.race([
+                window.MP.addAISeat(code),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('add_ai_seat timed out after 15s')), 15000)),
+            ]);
             await refreshLobbySeats();
         } catch (e) {
-            showError(e.message);
+            const msg = e?.message || String(e);
+            if (/outside lobby|cannot modify seats/i.test(msg)) {
+                showError(`Can't add AI to room ${code} — it's already in progress. Leave the room and create a new one (or pick Persistent next time so people can still join after the game starts).`);
+            } else {
+                showError(`Could not add AI: ${msg}`);
+            }
+        } finally {
+            buttons.forEach(b => { b.disabled = false; if (b.dataset.origText) b.textContent = b.dataset.origText; });
         }
     }
 
