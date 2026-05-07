@@ -253,8 +253,12 @@
     }
 
     async function onAddAI() {
+        clearError();
         const code = createCode || joinCode;
-        if (!code) return;
+        if (!code) {
+            showError('No room yet — wait for the room code to appear, then try again.');
+            return;
+        }
         try {
             await window.MP.addAISeat(code);
             await refreshLobbySeats();
