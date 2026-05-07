@@ -589,6 +589,14 @@ class Game {
             this.saveState();
         }
 
+        // Online: persist per-seat round scores to user_lifetime_stats + room_player_totals.
+        // Idempotent server-side (room_round_results PK on (room_code, round_number)),
+        // so it's safe for every client to call.
+        if (this.isOnline && window.MP?.active?.code) {
+            const handScores = s.hands.map(h => h.reduce((t, c) => t + cardValue(c), 0));
+            window.MP.recordRoundResult(window.MP.active.code, s.roundNumber, handScores);
+        }
+
         const roundScoresEl = document.getElementById('round-scores');
         roundScoresEl.innerHTML = s.seats.map((seat, i) => {
             const handScore = s.hands[i].reduce((t, c) => t + cardValue(c), 0);

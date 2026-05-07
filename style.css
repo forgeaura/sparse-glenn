@@ -1213,6 +1213,84 @@ body::after {
 }
 .setup-auth-banner p { margin: 0 0 8px; font-size: 0.9rem; }
 
+/* ── Persistent rooms / admin controls / pending requests ───────────────── */
+.setup-pending-banner {
+    background: rgba(255,200,80,0.12);
+    border: 1px solid rgba(255,200,80,0.35);
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-top: 12px;
+    text-align: center;
+}
+.setup-pending-banner p { margin: 0; font-size: 0.92rem; }
+
+.admin-pane { margin-top: 4px; }
+.pending-list, .member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+}
+.pending-title {
+    margin: 4px 0 2px;
+    font-size: 0.85rem;
+    opacity: 0.75;
+    font-weight: 600;
+}
+.pending-row, .member-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.04);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+.pending-row .pending-name,
+.member-row  .member-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.admin-badge {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: rgba(255,200,80,0.25);
+    color: #ffc864;
+    margin-left: 4px;
+}
+
+.lifetime-stats {
+    background: rgba(255,255,255,0.06);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    margin-bottom: 14px;
+}
+
+.my-rooms { display: flex; flex-direction: column; gap: 10px; }
+.my-room-row {
+    background: rgba(255,255,255,0.05);
+    padding: 10px 12px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.my-room-line1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.95rem; }
+.my-room-line2 { display: flex; justify-content: space-between; gap: 8px; opacity: 0.75; font-size: 0.82rem; }
+.my-room-actions { display: flex; gap: 8px; margin-top: 4px; }
+.my-room-status { margin-left: auto; opacity: 0.6; font-size: 0.8rem; }
+.kind-badge {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 6px;
+}
+.kind-badge.persistent { background: rgba(120,200,255,0.22); color: #9ed5ff; }
+.kind-badge.oneoff     { background: rgba(255,255,255,0.10); opacity: 0.7; }
+
 /* ── Opponents area (replaces single .opponent-hand) ─────────────────────── */
 .opponents {
     display: flex;
