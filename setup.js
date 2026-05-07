@@ -103,10 +103,11 @@
     async function onCreate() {
         clearError();
         if (!window.AuthManager?.currentUser) {
-            showError('Please sign in first.');
+            showError('Please sign in to create a multiplayer room.');
             return;
         }
         const policy = document.querySelector('input[name="drop-policy"]:checked')?.value || 'convert';
+        $('setup-room-code').textContent = '…';
         try {
             const code = await window.MP.createRoom({
                 dropPolicy: policy,
@@ -115,12 +116,15 @@
             createCode = code;
             mySeatIndex = 0;
             $('setup-room-code').textContent = code;
+            const startBtn = $('setup-start-game');
+            if (startBtn) startBtn.disabled = false;
             await refreshLobbySeats();
             // Periodically refresh until we're subscribed (real-time joins reflect quickly).
             if (pollHandle) clearInterval(pollHandle);
             pollHandle = setInterval(refreshLobbySeats, 3000);
         } catch (e) {
-            showError(e.message);
+            $('setup-room-code').textContent = '—';
+            showError(`Could not create room: ${e.message}. (Did you run the multiplayer migration in Supabase?)`);
         }
     }
 
@@ -169,9 +173,12 @@
     }
 
     async function onStart() {
-        const code = createCode || joinCode;
-        if (!code) return;
         clearError();
+        const code = createCode || joinCode;
+        if (!code) {
+            showError('No room yet — sign in and click Create Room again to generate a code.');
+            return;
+        }
         try {
             await window.MP.startRoom(code);
             if (pollHandle) { clearInterval(pollHandle); pollHandle = null; }
@@ -197,15 +204,28 @@
         return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
+    function isCreateTabActive() {
+        const pane = document.querySelector('.setup-pane[data-pane="create"]');
+        return pane && !pane.classList.contains('hidden');
+    }
+
+    function maybeAutoCreate() {
+        if (!isCreateTabActive()) return;
+        if (createCode) return;
+        if (!window.AuthManager?.currentUser) return;
+        onCreate();
+    }
+
     function init() {
         refreshAuthBanners();
+        const startBtn = $('setup-start-game');
+        if (startBtn) startBtn.disabled = true;
+
         document.querySelectorAll('.setup-tab').forEach(b => {
             b.onclick = () => {
                 const name = b.dataset.tab;
                 activateTab(name);
-                if (name === 'create' && !createCode && window.AuthManager?.currentUser) {
-                    onCreate();
-                }
+                if (name === 'create') maybeAutoCreate();
             };
         });
         $('setup-solo-start').onclick = () => {
@@ -219,8 +239,11 @@
         $('setup-join-start').onclick = onStart;
         $('setup-start-game').onclick = onStart;
 
-        // Re-evaluate auth banners whenever auth state changes (poll every second; tiny cost).
-        setInterval(refreshAuthBanners, 1000);
+        // Re-evaluate auth banners and retry auto-create once auth becomes ready.
+        setInterval(() => {
+            refreshAuthBanners();
+            maybeAutoCreate();
+        }, 1000);
     }
 
     window.SetupUI = {
