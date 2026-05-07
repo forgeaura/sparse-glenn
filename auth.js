@@ -8,6 +8,7 @@ const SUPABASE_URL = 'https://ypwjvzybxbsubixlslsz.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DBHsEayqtgagTjrsm9nk-w_WpcYb3OU';
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.SB = client; // shared singleton for multiplayer.js
 
 // ── Database helpers ─────────────────────────────────────────────────────────
 

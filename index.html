@@ -4,15 +4,103 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Switch Card Game</title>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="game-container">
-        <!-- Supabase Auth UI -->
-        <div id="game-board">
+
+        <!-- Setup screen: Solo / Create Room / Join Room -->
+        <div id="setup-screen" class="setup-screen">
+            <div class="setup-card glass">
+                <h1 class="setup-title">Switch</h1>
+                <p class="setup-subtitle">Play solo against AI, or invite friends online.</p>
+
+                <div class="setup-tabs" role="tablist">
+                    <button class="setup-tab active" data-tab="solo">Solo</button>
+                    <button class="setup-tab" data-tab="create">Create Room</button>
+                    <button class="setup-tab" data-tab="join">Join Room</button>
+                </div>
+
+                <!-- Solo tab -->
+                <div class="setup-pane" data-pane="solo">
+                    <p class="setup-hint">A quick game against the computer. No sign-in required.</p>
+                    <button class="btn" id="setup-solo-start">Start Solo Game</button>
+                </div>
+
+                <!-- Create tab -->
+                <div class="setup-pane hidden" data-pane="create">
+                    <div id="setup-auth-required" class="setup-auth-banner hidden">
+                        <p>Sign in to create a multiplayer room.</p>
+                        <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                    </div>
+                    <div id="setup-create-form">
+                        <div class="setup-field">
+                            <label>Room code</label>
+                            <div class="room-code-display">
+                                <span id="setup-room-code">—</span>
+                                <button class="btn btn-small btn-outline" id="setup-copy-code" title="Copy code">Copy</button>
+                            </div>
+                            <p class="setup-hint">Share this code with friends so they can join.</p>
+                        </div>
+                        <div class="setup-field">
+                            <label>Drop policy</label>
+                            <div class="drop-policy-row">
+                                <label><input type="radio" name="drop-policy" value="convert" checked> Convert dropped human to AI</label>
+                                <label><input type="radio" name="drop-policy" value="pause"> Pause and wait</label>
+                                <label><input type="radio" name="drop-policy" value="end_round"> End the round</label>
+                            </div>
+                        </div>
+                        <div class="setup-field">
+                            <label>Seats <span id="seat-cap-counter" class="seat-cap"></span></label>
+                            <div id="seat-list" class="seat-list"></div>
+                            <div class="seat-actions">
+                                <button class="btn btn-small" id="setup-add-ai">+ Add AI</button>
+                            </div>
+                        </div>
+                        <button class="btn" id="setup-start-game">Start Game</button>
+                    </div>
+                </div>
+
+                <!-- Join tab -->
+                <div class="setup-pane hidden" data-pane="join">
+                    <div id="setup-auth-required-join" class="setup-auth-banner hidden">
+                        <p>Sign in to join a multiplayer room.</p>
+                        <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                    </div>
+                    <div id="setup-join-form">
+                        <div class="setup-field">
+                            <label for="setup-join-code">Room code</label>
+                            <input id="setup-join-code" type="text" maxlength="6" placeholder="ABC123" class="auth-input" autocapitalize="characters" />
+                        </div>
+                        <button class="btn" id="setup-join-btn">Join Room</button>
+                        <div id="setup-join-lobby" class="hidden">
+                            <hr/>
+                            <p>You're in! Waiting for the room to start…</p>
+                            <div class="setup-field">
+                                <label>Seats</label>
+                                <div id="setup-join-seat-list" class="seat-list"></div>
+                                <div class="seat-actions">
+                                    <button class="btn btn-small" id="setup-join-add-ai">+ Add AI</button>
+                                </div>
+                            </div>
+                            <button class="btn" id="setup-join-start">Start Game</button>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="setup-error" class="auth-error hidden"></p>
+            </div>
+        </div>
+
+        <!-- Pause banner (multiplayer) -->
+        <div id="pause-banner" class="pause-banner hidden">
+            <span>⏸ Game paused — waiting for a player to reconnect…</span>
+        </div>
+
+        <div id="game-board" class="hidden">
             <div class="sidebar left glass">
                 <div class="auth-section glass" id="auth-section">
                     <div id="auth-logged-out">
@@ -59,8 +147,8 @@
             </div>
 
             <div class="main-area">
-                <div class="opponent-hand" id="computer-hand">
-                    <!-- Computer cards here -->
+                <div class="opponents" id="opponents" data-opponents="1">
+                    <!-- Opponent seats rendered here -->
                 </div>
 
                 <div class="center-pile">
@@ -165,5 +253,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="auth.js"></script>
     <script src="game.js"></script>
+    <script src="multiplayer.js"></script>
+    <script src="setup.js"></script>
 </body>
 </html>
