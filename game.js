@@ -1,48 +1,73 @@
-// Switch Card Game - Game Logic
+// Switch Card Game - Game Logic (N-seat)
 
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const VALUES = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'Joker': 50 };
 
-class Card {
-    constructor(suit, rank) {
-        this.suit = suit; // hearts, diamonds, clubs, spades, or 'wild'
-        this.rank = rank; // A, 2, 3, ..., K, or 'Joker'
-        this.value = VALUES[rank];
-        this.id = Math.random().toString(36).substr(2, 9);
+// ── Seeded RNG (mulberry32). Used wherever determinism across clients matters. ────
+function makeRng(seed) {
+    let s = (seed >>> 0) || 1;
+    return function () {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+function randomCardId() { return Math.random().toString(36).substr(2, 9); }
+function plainCard(suit, rank) { return { suit, rank, id: randomCardId() }; }
+function cardValue(c) { return VALUES[c.rank] ?? 0; }
+
+// ── Deck construction (returns plain card array). ────────────────────────────────
+function makeShuffledDeck(numDecks, rng) {
+    const cards = [];
+    for (let d = 0; d < numDecks; d++) {
+        for (const s of SUITS) {
+            for (const r of RANKS) cards.push(plainCard(s, r));
+        }
+        cards.push(plainCard('wild', 'Joker'));
+        cards.push(plainCard('wild', 'Joker'));
     }
+    for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+    }
+    return cards;
+}
+
+// ── Card (rendering only — wraps a plain {suit,rank,id}). ────────────────────────
+class Card {
+    constructor(suit, rank, id) {
+        this.suit = suit;
+        this.rank = rank;
+        this.value = VALUES[rank];
+        this.id = id ?? randomCardId();
+    }
+
+    static from(p) { return new Card(p.suit, p.rank, p.id); }
 
     get color() {
         return (this.suit === 'hearts' || this.suit === 'diamonds') ? 'red' : 'black';
-    }
-
-    get symbol() {
-        const symbols = { 'hearts': '♥', 'diamonds': '♦', 'clubs': '♣', 'spades': '♠', 'wild': '★' };
-        return symbols[this.suit] || '';
     }
 
     getSuitSVG(suit) {
         const svgStart = `<svg class="card-suit-svg" viewBox="0 0 100 100">`;
         const svgEnd = `</svg>`;
         let path = '';
-        
-        switch(suit) {
+        switch (suit) {
             case 'hearts':
-                // Sharper, more classic heart
                 path = `<path d="M50 88 C50 88 15 62 15 38 A18 18 0 0 1 50 30 A18 18 0 0 1 85 38 C85 62 50 88 50 88 Z" fill="currentColor"/>`;
                 break;
             case 'diamonds':
                 path = `<path d="M50 12 L82 50 L50 88 L18 50 Z" fill="currentColor"/>`;
                 break;
             case 'clubs':
-                // Better clubs with distinct leaves
                 path = `<path d="M50 50 A15 15 0 1 1 35 35 A15 15 0 1 1 65 35 A15 15 0 1 1 50 50 M50 50 L50 90 M35 90 L65 90" stroke="currentColor" stroke-width="6" fill="currentColor"/>`;
                 break;
             case 'spades':
-                // Sharper spade point and more distinct stem to avoid heart confusion
                 path = `<path d="M50 15 C50 15 15 45 15 70 A18 18 0 1 0 50 70 A18 18 0 1 0 85 70 C85 45 50 15 50 15 M50 70 L50 90 M35 90 L65 90" stroke="currentColor" stroke-width="2" fill="currentColor"/>`;
                 break;
-
             case 'wild':
                 path = `<path d="M50 10 L61 40 L93 40 L67 60 L77 90 L50 72 L23 90 L33 60 L7 40 L39 40 Z" fill="currentColor"/>`;
                 break;
@@ -50,45 +75,39 @@ class Card {
         return svgStart + path + svgEnd;
     }
 
-
     getFaceSVG(rank) {
         const svgStart = `<svg class="card-face-svg" viewBox="0 0 100 100">`;
         const svgEnd = `</svg>`;
-        
         let paths = '';
         if (rank === 'K') {
-            // King: Crown + Beard + Shoulders
             paths = `
-                <path d="M30 30 L70 30 L70 70 L30 70 Z" fill="none" /> <!-- Shoulder/Body -->
-                <path d="M35 30 L40 10 L50 20 L60 10 L65 30" /> <!-- Crown -->
-                <circle cx="50" cy="45" r="8" /> <!-- Face -->
-                <path d="M42 55 Q50 65 58 55" /> <!-- Beard -->
-                <path d="M45 42 A1 1 0 0 1 45 44 M55 42 A1 1 0 0 1 55 44" stroke-width="3" /> <!-- Eyes -->
+                <path d="M30 30 L70 30 L70 70 L30 70 Z" fill="none" />
+                <path d="M35 30 L40 10 L50 20 L60 10 L65 30" />
+                <circle cx="50" cy="45" r="8" />
+                <path d="M42 55 Q50 65 58 55" />
+                <path d="M45 42 A1 1 0 0 1 45 44 M55 42 A1 1 0 0 1 55 44" stroke-width="3" />
             `;
         } else if (rank === 'Q') {
-            // Queen: Tiara + Hair + Cape
             paths = `
-                <path d="M30 40 L50 20 L70 40 L60 80 L40 80 Z" fill="none" /> <!-- Body -->
-                <path d="M40 30 L45 15 L55 15 L60 30" /> <!-- Tiara -->
-                <circle cx="50" cy="45" r="8" /> <!-- Face -->
-                <path d="M40 45 Q35 55 40 65 M60 45 Q65 55 60 65" /> <!-- Hair -->
-                <path d="M48 55 Q50 58 52 55" /> <!-- Smile -->
+                <path d="M30 40 L50 20 L70 40 L60 80 L40 80 Z" fill="none" />
+                <path d="M40 30 L45 15 L55 15 L60 30" />
+                <circle cx="50" cy="45" r="8" />
+                <path d="M40 45 Q35 55 40 65 M60 45 Q65 55 60 65" />
+                <path d="M48 55 Q50 58 52 55" />
             `;
         } else if (rank === 'J') {
-            // Jack: Cap + Simple Face + Spear/Scepter
             paths = `
-                <path d="M30 70 L40 40 L60 40 L70 70" /> <!-- Body -->
-                <path d="M35 40 Q50 25 65 40" /> <!-- Cap -->
-                <circle cx="50" cy="48" r="7" /> <!-- Face -->
-                <path d="M75 20 L75 80 M70 25 L80 25" /> <!-- Scepter -->
+                <path d="M30 70 L40 40 L60 40 L70 70" />
+                <path d="M35 40 Q50 25 65 40" />
+                <circle cx="50" cy="48" r="7" />
+                <path d="M75 20 L75 80 M70 25 L80 25" />
             `;
         } else if (rank === 'Joker') {
-            // Joker: Jester Hat (3 points) + Face
             paths = `
-                <path d="M30 40 Q20 20 40 30 M50 35 Q50 10 50 10 M60 30 Q80 20 70 40" /> <!-- Hat -->
-                <circle cx="50" cy="55" r="10" /> <!-- Face -->
-                <path d="M42 60 Q50 70 58 60" /> <!-- Smile -->
-                <circle cx="30" cy="20" r="2" fill="currentColor" /> <!-- Bells -->
+                <path d="M30 40 Q20 20 40 30 M50 35 Q50 10 50 10 M60 30 Q80 20 70 40" />
+                <circle cx="50" cy="55" r="10" />
+                <path d="M42 60 Q50 70 58 60" />
+                <circle cx="30" cy="20" r="2" fill="currentColor" />
                 <circle cx="50" cy="5" r="2" fill="currentColor" />
                 <circle cx="70" cy="20" r="2" fill="currentColor" />
             `;
@@ -100,11 +119,8 @@ class Card {
         const div = document.createElement('div');
         div.className = `card face-up ${this.color} ${animationClass}`;
         div.dataset.id = this.id;
-        if (isDraggable) {
-            div.draggable = true;
-        }
+        if (isDraggable) div.draggable = true;
 
-        // Special glows
         if (this.rank === '2') div.classList.add('glow-2');
         if (this.rank === 'Joker') div.classList.add('glow-joker');
 
@@ -119,84 +135,265 @@ class Card {
             </div>
             <div class="card-center">${centerContent}</div>
             <div class="card-bottom">
-                 <span class="card-rank">${this.rank === 'Joker' ? 'J' : this.rank}</span>
+                <span class="card-rank">${this.rank === 'Joker' ? 'J' : this.rank}</span>
                 <span class="card-suit">${suitIcon}</span>
             </div>
         `;
         return div;
     }
-
 }
 
-class Deck {
-    constructor() {
-        this.cards = [];
-        this.init();
-    }
+// ── Pure rules helpers ───────────────────────────────────────────────────────────
+function isPlayable(card, currentSuit, currentRank, pickupStack) {
+    if (pickupStack > 0) return card.rank === '2';
+    if (card.rank === 'Joker') return true;
+    return card.suit === currentSuit || card.rank === currentRank;
+}
 
-    init() {
-        this.cards = [];
-        for (const suit of SUITS) {
-            for (const rank of RANKS) {
-                this.cards.push(new Card(suit, rank));
+function nextSeat(seatIndex, numSeats, direction = 1, skip = false) {
+    const step = (skip ? 2 : 1) * direction;
+    return ((seatIndex + step) % numSeats + numSeats) % numSeats;
+}
+
+// Whose action is the game waiting on right now?
+function actingSeat(state) {
+    return state.pendingSuitSeat != null ? state.pendingSuitSeat : state.currentSeat;
+}
+
+// ── Pure reducer. Returns { state, log[] }. Does not mutate the input. ───────────
+// state shape: see Game._freshState
+// action: { type:'play', cardId, chosenSuit? } | { type:'draw' } | { type:'pickup' } | { type:'select_suit', suit }
+function applyAction(prev, seatIndex, action) {
+    const s = JSON.parse(JSON.stringify(prev));
+    const log = [];
+    const N = s.numSeats;
+    const name = s.seats[seatIndex].displayName;
+
+    const reshuffleIfEmpty = () => {
+        if (s.deck.length > 0) return true;
+        if (s.discard.length <= 1) return false;
+        const top = s.discard.pop();
+        const seed = (s.rngSeed ^ s.discard.length ^ s.roundNumber) >>> 0;
+        const rng = makeRng(seed || 1);
+        const pile = s.discard;
+        for (let i = pile.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [pile[i], pile[j]] = [pile[j], pile[i]];
+        }
+        s.deck = pile;
+        s.discard = [top];
+        log.push("Deck reshuffled.");
+        return true;
+    };
+
+    if (action.type === 'play') {
+        const hand = s.hands[seatIndex];
+        const idx = hand.findIndex(c => c.id === action.cardId);
+        if (idx === -1) return { state: prev, log: ['Invalid play (card not in hand)'] };
+        const card = hand[idx];
+        if (!isPlayable(card, s.currentSuit, s.currentRank, s.pickupStack)) {
+            return { state: prev, log: ['Invalid play (not playable)'] };
+        }
+
+        hand.splice(idx, 1);
+        s.discard.push(card);
+        s.currentRank = card.rank;
+        s.currentSuit = card.suit;
+        log.push(`${name} played ${card.rank} of ${card.suit === 'wild' ? 'Wild' : card.suit}`);
+
+        if (hand.length === 0) {
+            // Round won — score remaining hands.
+            for (let i = 0; i < N; i++) {
+                if (i === seatIndex) continue;
+                const handScore = s.hands[i].reduce((t, c) => t + cardValue(c), 0);
+                s.scores[i] = (s.scores[i] || 0) + handScore;
+            }
+            s.gameOver = true;
+            s.winnerSeat = seatIndex;
+            log.push(`${name} won round ${s.roundNumber}!`);
+            s.logTail = trimLog([...(s.logTail || []), ...log]);
+            return { state: s, log };
+        }
+
+        let skip = false;
+        if (card.rank === '2') {
+            s.pickupStack += 2;
+            log.push(`Pickup stack increased to ${s.pickupStack}!`);
+        } else if (card.rank === '3') {
+            skip = true;
+            const skippedSeat = nextSeat(seatIndex, N, s.direction);
+            log.push(`${s.seats[skippedSeat].displayName} skipped!`);
+        } else if (card.rank === 'Joker') {
+            if (action.chosenSuit) {
+                s.currentSuit = action.chosenSuit;
+                log.push(`Suit changed to ${action.chosenSuit}.`);
+            } else {
+                s.pendingSuitSeat = seatIndex;
+                s.logTail = trimLog([...(s.logTail || []), ...log]);
+                return { state: s, log };
             }
         }
-        // Add 2 Jokers
-        this.cards.push(new Card('wild', 'Joker'));
-        this.cards.push(new Card('wild', 'Joker'));
-        this.shuffle();
-    }
-
-    shuffle() {
-        for (let i = this.cards.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+        s.currentSeat = nextSeat(seatIndex, N, s.direction, skip);
+    } else if (action.type === 'draw') {
+        if (!reshuffleIfEmpty()) {
+            log.push(`No cards left — turn passes.`);
+            s.pickupStack = 0;
+            s.currentSeat = nextSeat(seatIndex, N, s.direction);
+        } else {
+            const card = s.deck.pop();
+            s.hands[seatIndex].push(card);
+            log.push(`${name} drew a card.`);
+            // Switch rule: keep turn if drawn card is playable so they may play it next.
+            if (!isPlayable(card, s.currentSuit, s.currentRank, s.pickupStack)) {
+                s.currentSeat = nextSeat(seatIndex, N, s.direction);
+            }
         }
+    } else if (action.type === 'pickup') {
+        if (s.pickupStack <= 0) return { state: prev, log: ['No pickup stack'] };
+        log.push(`${name} picks up ${s.pickupStack} cards.`);
+        const stack = s.pickupStack;
+        for (let i = 0; i < stack; i++) {
+            if (!reshuffleIfEmpty()) break;
+            s.hands[seatIndex].push(s.deck.pop());
+        }
+        s.pickupStack = 0;
+        s.currentSeat = nextSeat(seatIndex, N, s.direction);
+    } else if (action.type === 'select_suit') {
+        if (s.pendingSuitSeat !== seatIndex) return { state: prev, log: ['Not your suit pick'] };
+        s.currentSuit = action.suit;
+        s.pendingSuitSeat = null;
+        log.push(`${name} changed suit to ${action.suit}.`);
+        s.currentSeat = nextSeat(seatIndex, N, s.direction);
     }
 
-    draw() {
-        if (this.cards.length === 0) return null;
-        return this.cards.pop();
-    }
+    s.logTail = trimLog([...(s.logTail || []), ...log]);
+    return { state: s, log };
 }
 
+function trimLog(arr) {
+    while (arr.length > 30) arr.shift();
+    return arr;
+}
+
+// ── Pure AI. Deterministic given (state, seatIndex, seed). ───────────────────────
+function decideAIMove(state, seatIndex, seed) {
+    const rng = makeRng(seed || 1);
+    const hand = [...state.hands[seatIndex]].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+    // Pending suit pick on this seat (Joker just played, no chosenSuit) — pick best suit.
+    if (state.pendingSuitSeat === seatIndex) {
+        const counts = {};
+        for (const c of hand) {
+            if (c.suit !== 'wild') counts[c.suit] = (counts[c.suit] || 0) + 1;
+        }
+        let best = null, bestN = -1;
+        for (const s of SUITS) {
+            const n = counts[s] || 0;
+            if (n > bestN) { bestN = n; best = s; }
+        }
+        if (!best) best = SUITS[Math.floor(rng() * SUITS.length)];
+        return { type: 'select_suit', suit: best };
+    }
+
+    if (state.pickupStack > 0) {
+        const twos = hand.filter(c => c.rank === '2');
+        if (twos.length) return { type: 'play', cardId: twos[0].id };
+        return { type: 'pickup' };
+    }
+
+    const playable = hand.filter(c => isPlayable(c, state.currentSuit, state.currentRank, state.pickupStack));
+    if (playable.length === 0) return { type: 'draw' };
+
+    const twos = playable.filter(c => c.rank === '2');
+    if (twos.length) return { type: 'play', cardId: twos[0].id };
+
+    const jokers = playable.filter(c => c.rank === 'Joker');
+    if (jokers.length) {
+        const remaining = hand.filter(c => c.id !== jokers[0].id && c.suit !== 'wild');
+        const counts = {};
+        for (const c of remaining) counts[c.suit] = (counts[c.suit] || 0) + 1;
+        let best = null, bestN = -1;
+        for (const s of SUITS) {
+            const n = counts[s] || 0;
+            if (n > bestN) { bestN = n; best = s; }
+        }
+        if (!best) best = SUITS[Math.floor(rng() * SUITS.length)];
+        return { type: 'play', cardId: jokers[0].id, chosenSuit: best };
+    }
+
+    playable.sort((a, b) => (cardValue(b) - cardValue(a)) || (a.id < b.id ? -1 : 1));
+    return { type: 'play', cardId: playable[0].id };
+}
+
+// ── Game class (single-player & remote-render orchestration) ─────────────────────
 class Game {
-    constructor() {
-        this.deck = new Deck();
-        this.playerHand = [];
-        this.computerHand = [];
-        this.discardPile = [];
-        this.currentSuit = null;
-        this.currentRank = null;
-        this.turn = 'player'; // 'player' or 'computer'
-        this.pickupStack = 0;
-        this.gameOver = false;
-        this.currentRound = 1;
+    constructor(opts = {}) {
+        const seats = opts.seats || [
+            { seatIndex: 0, type: 'human', userId: null, displayName: 'You' },
+            { seatIndex: 1, type: 'ai', userId: null, displayName: 'Computer' },
+        ];
+        this.mySeat = (opts.mySeat != null) ? opts.mySeat : 0;
+        this.isOnline = !!opts.isOnline;
+        this.dropPolicy = opts.dropPolicy || 'convert';
+        // Each deck = 54 cards (52 + 2 Jokers). Dealing 7/seat needs >= 7N cards.
+        // 1 deck supports up to 7 seats; 8+ seats need ≥ 2 decks.
+        this.numDecks = Math.max(1, Math.ceil(seats.length / 7));
+
+        // Legacy per-device tournament totals (only meaningful for the classic 1 human + 1 AI room).
         this.playerTotalScore = 0;
         this.computerTotalScore = 0;
-        this.isPendingSuitSelection = false;
+        this.currentRound = 1;
         this.showPlayableHighlight = true;
-        
+
+        this.state = this._freshState(seats);
+
         this.draggedCardId = null;
         this.selectedCardIndex = null;
+        this.turnSeq = 0;
+        this._pendingJokerCardId = null;
+        this.isDealing = false;
+    }
+
+    _freshState(seats) {
+        const hands = {};
+        const scores = {};
+        for (let i = 0; i < seats.length; i++) { hands[i] = []; scores[i] = 0; }
+        return {
+            seats,
+            numSeats: seats.length,
+            hands,
+            deck: [],
+            discard: [],
+            currentSeat: 0,
+            currentSuit: null,
+            currentRank: null,
+            pickupStack: 0,
+            pendingSuitSeat: null,
+            direction: 1,
+            scores,
+            roundNumber: 1,
+            gameOver: false,
+            winnerSeat: null,
+            rngSeed: ((Math.random() * 0x7fffffff) | 0),
+            logTail: [],
+            paused: false,
+        };
     }
 
     saveState() {
         const state = this.getState();
         if (window.AuthManager) {
-            AuthManager.saveState(state); // async fire-and-forget; mirrors to localStorage too
+            AuthManager.saveState(state);
         } else {
             localStorage.setItem('switch_tournament_state', JSON.stringify(state));
         }
     }
 
     loadState() {
-        // Phase 1: instant render from localStorage
         const saved = localStorage.getItem('switch_tournament_state');
-        if (saved) this.applyState(JSON.parse(saved));
-        // Phase 2: if Firebase auth resolved before window.onload, apply remote state
+        if (saved) this.applyTournamentState(JSON.parse(saved));
         if (window._pendingRemoteState) {
-            this.applyState(window._pendingRemoteState);
+            this.applyTournamentState(window._pendingRemoteState);
             window._pendingRemoteState = null;
         }
     }
@@ -206,11 +403,11 @@ class Game {
             playerTotalScore: this.playerTotalScore,
             computerTotalScore: this.computerTotalScore,
             currentRound: this.currentRound,
-            showPlayableHighlight: this.showPlayableHighlight
+            showPlayableHighlight: this.showPlayableHighlight,
         };
     }
 
-    applyState(state) {
+    applyTournamentState(state) {
         this.playerTotalScore = state.playerTotalScore || 0;
         this.computerTotalScore = state.computerTotalScore || 0;
         this.currentRound = state.currentRound || 1;
@@ -219,141 +416,306 @@ class Game {
         if (checkbox) checkbox.checked = this.showPlayableHighlight;
     }
 
-    startRound() {
-        this.deck = new Deck();
-        this.playerHand = [];
-        this.computerHand = [];
-        this.discardPile = [];
-        this.pickupStack = 0;
-        this.gameOver = false;
-        this.isPendingSuitSelection = false;
+    // Kept for compatibility with auth.js, which calls game.applyState(remoteState).
+    applyState(state) { this.applyTournamentState(state); }
 
-        // Deal 7 cards each with staggered animation
+    startRound() {
+        const s = this.state;
+        const rng = makeRng(((s.rngSeed ^ s.roundNumber) >>> 0) || 1);
+        s.deck = makeShuffledDeck(this.numDecks, rng);
+        for (let i = 0; i < s.numSeats; i++) s.hands[i] = [];
+        s.discard = [];
+        s.pickupStack = 0;
+        s.gameOver = false;
+        s.winnerSeat = null;
+        s.pendingSuitSeat = null;
+        s.currentSeat = 0;
+
         for (let i = 0; i < 7; i++) {
-            this.playerHand.push(this.deck.draw());
-            this.computerHand.push(this.deck.draw());
+            for (let seat = 0; seat < s.numSeats; seat++) {
+                s.hands[seat].push(s.deck.pop());
+            }
         }
 
-        // Trigger dealing animation after a short delay
+        let initial = s.deck.pop();
+        let guard = 200;
+        while (initial && guard-- > 0 && (initial.rank === '2' || initial.rank === '3' || initial.rank === 'Joker')) {
+            s.deck.unshift(initial);
+            for (let i = s.deck.length - 1; i > 0; i--) {
+                const j = Math.floor(rng() * (i + 1));
+                [s.deck[i], s.deck[j]] = [s.deck[j], s.deck[i]];
+            }
+            initial = s.deck.pop();
+        }
+        s.discard.push(initial);
+        s.currentSuit = initial.suit;
+        s.currentRank = initial.rank;
+
         this.isDealing = true;
         this.updateUI();
-        setTimeout(() => {
-            this.isDealing = false;
-            this.updateUI();
-        }, 1500);
+        setTimeout(() => { this.isDealing = false; this.updateUI(); }, 1500);
 
-
-        // Initial discard card (cannot be a special card for simplicity of start)
-        let initialCard = this.deck.draw();
-        while (initialCard.rank === '2' || initialCard.rank === '3' || initialCard.rank === 'Joker') {
-            this.deck.cards.unshift(initialCard);
-            this.deck.shuffle();
-            initialCard = this.deck.draw();
-        }
-
-        this.discardPile.push(initialCard);
-        this.currentSuit = initialCard.suit;
-        this.currentRank = initialCard.rank;
-        this.turn = 'player';
-
-        this.updateUI();
-        this.log("Round " + this.currentRound + " started!");
+        this.log(`Round ${s.roundNumber} started!`);
+        this._maybeScheduleAITurn();
     }
 
     log(msg) {
         const logBox = document.getElementById('game-log');
+        if (!logBox) return;
         const p = document.createElement('p');
-        
-        // Add icons based on keywords
         let icon = '📝';
         if (msg.includes('played')) icon = '🃏';
         if (msg.includes('drew')) icon = '🎴';
         if (msg.includes('suit')) icon = '✨';
-        if (msg.includes('Round')) icon = '🏁';
+        if (msg.includes('Round') || msg.includes('round')) icon = '🏁';
         if (msg.includes('skipped')) icon = '🚫';
         if (msg.includes('stack')) icon = '🔥';
-        
         p.innerHTML = `<span class="log-icon">${icon}</span> ${msg}`;
         logBox.appendChild(p);
         logBox.scrollTop = logBox.scrollHeight;
     }
 
+    // Routes a player action — solo applies locally, online sends to multiplayer layer.
+    commit(action) {
+        if (this.state.gameOver) return;
+        if (this.isOnline && window.MP) {
+            window.MP.commitMove(action);
+            return;
+        }
+        const acting = actingSeat(this.state);
+        const result = applyAction(this.state, acting, action);
+        this.state = result.state;
+        for (const m of (result.log || [])) this.log(m);
+        this.updateUI();
+        if (this.state.gameOver) {
+            this.endRound(this.state.winnerSeat);
+            return;
+        }
+        this._maybeScheduleAITurn();
+    }
+
+    _maybeScheduleAITurn() {
+        if (this.state.gameOver || this.isOnline || this.state.paused) return;
+        const seat = this.state.seats[actingSeat(this.state)];
+        if (!seat || seat.type !== 'ai') return;
+        setTimeout(() => this._runAITurn(), 700);
+    }
+
+    _runAITurn() {
+        if (this.state.gameOver || this.isOnline) return;
+        const acting = actingSeat(this.state);
+        const seat = this.state.seats[acting];
+        if (!seat || seat.type !== 'ai') return;
+        const action = decideAIMove(this.state, acting, ((this.state.rngSeed ^ this.turnSeq) >>> 0) || 1);
+        this.turnSeq++;
+        const r = applyAction(this.state, acting, action);
+        this.state = r.state;
+        for (const m of (r.log || [])) this.log(m);
+        this.updateUI();
+        if (this.state.gameOver) { this.endRound(this.state.winnerSeat); return; }
+        this._maybeScheduleAITurn();
+    }
+
+    // Called by multiplayer.js when a fresh state row arrives over Realtime.
+    applyRemoteState(remoteState, turnSeq) {
+        this.state = remoteState;
+        this.turnSeq = turnSeq;
+        this.updateUI();
+        if (this.state.gameOver) this.endRound(this.state.winnerSeat);
+    }
+
+    handleCardClick(card, index) {
+        const s = this.state;
+        if (s.currentSeat !== this.mySeat) return;
+        if (s.pendingSuitSeat != null) return;
+        if (s.gameOver) return;
+
+        if (isPlayable(card, s.currentSuit, s.currentRank, s.pickupStack)) {
+            if (card.rank === 'Joker') {
+                this._pendingJokerCardId = card.id;
+                document.getElementById('suit-selector').classList.remove('hidden');
+                this.updateUI();
+                return;
+            }
+            this.commit({ type: 'play', cardId: card.id });
+            this.selectedCardIndex = null;
+            return;
+        }
+
+        if (this.selectedCardIndex === null) {
+            this.selectedCardIndex = index;
+            this.updateUI();
+        } else {
+            if (this.selectedCardIndex !== index) {
+                const hand = s.hands[this.mySeat];
+                const [moved] = hand.splice(this.selectedCardIndex, 1);
+                hand.splice(index, 0, moved);
+            }
+            this.selectedCardIndex = null;
+            this.updateUI();
+        }
+    }
+
+    playerDraw() {
+        const s = this.state;
+        if (s.currentSeat !== this.mySeat) return;
+        if (s.pendingSuitSeat != null) return;
+        if (s.gameOver) return;
+        if (s.pickupStack > 0) this.commit({ type: 'pickup' });
+        else this.commit({ type: 'draw' });
+    }
+
+    selectSuit(suit) {
+        document.getElementById('suit-selector').classList.add('hidden');
+        if (this._pendingJokerCardId) {
+            const cardId = this._pendingJokerCardId;
+            this._pendingJokerCardId = null;
+            this.commit({ type: 'play', cardId, chosenSuit: suit });
+            return;
+        }
+        if (this.state.pendingSuitSeat === this.mySeat) {
+            this.commit({ type: 'select_suit', suit });
+        }
+    }
+
+    endRound(winnerSeat) {
+        const s = this.state;
+        // Legacy 1H+1AI tournament totals — keeps the existing solo experience identical.
+        if (s.numSeats === 2 && s.seats[0].type === 'human' && s.seats[1].type === 'ai') {
+            const playerScore = s.hands[0].reduce((t, c) => t + cardValue(c), 0);
+            const computerScore = s.hands[1].reduce((t, c) => t + cardValue(c), 0);
+            this.playerTotalScore += playerScore;
+            this.computerTotalScore += computerScore;
+            this.saveState();
+        }
+
+        const roundScoresEl = document.getElementById('round-scores');
+        roundScoresEl.innerHTML = s.seats.map((seat, i) => {
+            const handScore = s.hands[i].reduce((t, c) => t + cardValue(c), 0);
+            return `<p>${seat.displayName}: +${handScore} (total ${s.scores[i] || 0})</p>`;
+        }).join('');
+
+        const title = document.getElementById('round-result-title');
+        const winnerName = winnerSeat != null ? s.seats[winnerSeat].displayName : '—';
+        title.innerText = `${winnerName} won the round!`;
+
+        document.getElementById('round-end-overlay').classList.remove('hidden');
+        document.body.classList.add('no-scroll');
+
+        document.getElementById('next-round-btn').onclick = () => {
+            document.getElementById('round-end-overlay').classList.add('hidden');
+            document.body.classList.remove('no-scroll');
+            s.roundNumber++;
+            this.currentRound = s.roundNumber;
+            // In online mode, round transitions are driven by multiplayer layer.
+            if (!this.isOnline) this.startRound();
+            else if (window.MP && window.MP.requestNextRound) window.MP.requestNextRound();
+        };
+    }
 
     updateUI() {
-        // Render Player Hand
+        const s = this.state;
+
+        // ── Player hand (mine) ────────────────────────────────────────────────
         const playerHandEl = document.getElementById('player-hand');
+        if (!playerHandEl) return;
         playerHandEl.innerHTML = '';
-        this.playerHand.forEach((card, index) => {
-            const cardEl = card.render(true); // Enable dragging
-            if (this.turn === 'player' && !this.isPendingSuitSelection) {
-                if (this.isPlayable(card) && this.showPlayableHighlight) {
+        const myHand = s.hands[this.mySeat] || [];
+        const myTurn = s.currentSeat === this.mySeat && s.pendingSuitSeat == null && !s.gameOver && !s.paused;
+
+        myHand.forEach((cardData, index) => {
+            const card = Card.from(cardData);
+            const cardEl = card.render(true);
+            if (myTurn) {
+                if (isPlayable(cardData, s.currentSuit, s.currentRank, s.pickupStack) && this.showPlayableHighlight) {
                     cardEl.classList.add('playable');
                 }
-                if (this.selectedCardIndex === index) {
-                    cardEl.classList.add('selected');
-                }
-                cardEl.onclick = () => this.handleCardClick(card, index);
+                if (this.selectedCardIndex === index) cardEl.classList.add('selected');
+                cardEl.onclick = () => this.handleCardClick(cardData, index);
             }
-            
-            // Drag and Drop implementation
-            cardEl.ondragstart = (e) => this.handleDragStart(e, card.id);
+            cardEl.ondragstart = (e) => this.handleDragStart(e, cardData.id);
             cardEl.ondragover = (e) => this.handleDragOver(e);
-            cardEl.onleave = (e) => cardEl.classList.remove('drag-over');
             cardEl.ondrop = (e) => this.handleDrop(e, index);
             cardEl.ondragend = (e) => this.handleDragEnd(e);
-
             if (this.isDealing) {
                 cardEl.classList.add('dealing');
                 cardEl.style.animationDelay = `${index * 0.1}s`;
             }
-
             playerHandEl.appendChild(cardEl);
         });
 
-
-        // Render Computer Hand (Face Down)
-        const computerHandEl = document.getElementById('computer-hand');
-        computerHandEl.innerHTML = '';
-        this.computerHand.forEach((_, index) => {
-            const cardEl = document.createElement('div');
-            cardEl.className = 'card card-back';
-            if (this.isDealing) {
-                cardEl.classList.add('dealing');
-                cardEl.style.animationDelay = `${index * 0.1}s`;
+        // ── Opponents (everyone except mySeat, ordered clockwise from mySeat) ─
+        const opponentsEl = document.getElementById('opponents');
+        if (opponentsEl) {
+            opponentsEl.innerHTML = '';
+            const opponentSeats = [];
+            for (let off = 1; off < s.numSeats; off++) {
+                opponentSeats.push((this.mySeat + off) % s.numSeats);
             }
-            cardEl.style.setProperty('--rot', `${(index - (this.computerHand.length/2)) * 2}deg`);
-            computerHandEl.appendChild(cardEl);
-        });
+            opponentsEl.dataset.opponents = opponentSeats.length;
 
+            for (const seatIdx of opponentSeats) {
+                const seat = s.seats[seatIdx];
+                const handCount = (s.hands[seatIdx] || []).length;
+                const div = document.createElement('div');
+                div.className = 'opponent';
+                if (actingSeat(s) === seatIdx) div.classList.add('active');
+                if (seat.type === 'ai') div.classList.add('opponent-ai');
+                if (seat.isOffline) div.classList.add('opponent-offline');
 
-        // Render Discard Pile (Top card)
+                const showFan = opponentSeats.length <= 7;
+                const fanCount = Math.min(handCount, 7);
+                let fanHtml = '';
+                if (showFan) {
+                    for (let i = 0; i < fanCount; i++) {
+                        const rot = (i - fanCount / 2) * 4;
+                        fanHtml += `<div class="card card-back" style="--rot:${rot}deg"></div>`;
+                    }
+                }
+
+                div.innerHTML = `
+                    <div class="opponent-name">${seat.type === 'ai' ? '🤖 ' : ''}${escapeHtml(seat.displayName)}${seat.isOffline ? ' <span class="offline-tag">offline</span>' : ''}</div>
+                    ${showFan ? `<div class="opponent-hand-row">${fanHtml}</div>` : ''}
+                    <div class="opponent-count">${handCount} card${handCount === 1 ? '' : 's'}</div>
+                `;
+                opponentsEl.appendChild(div);
+            }
+        }
+
+        // ── Discard top ───────────────────────────────────────────────────────
         const discardPileEl = document.getElementById('discard-pile');
         discardPileEl.innerHTML = '';
-        const topCard = this.discardPile[this.discardPile.length - 1];
-        if (topCard) {
-            const cardEl = topCard.render();
-            // If suit was changed by joker, show the selected suit
-            if (topCard.rank === 'Joker') {
+        const top = s.discard[s.discard.length - 1];
+        if (top) {
+            const cardEl = Card.from(top).render();
+            if (top.rank === 'Joker') {
                 const centerEl = cardEl.querySelector('.card-center');
-                centerEl.innerHTML = topCard.getSuitSVG(this.currentSuit);
-                // Fix: Ensure color matches the selected suit
+                centerEl.innerHTML = Card.from(top).getSuitSVG(s.currentSuit);
                 cardEl.classList.remove('red', 'black');
-                const suitColor = (this.currentSuit === 'hearts' || this.currentSuit === 'diamonds') ? 'red' : 'black';
+                const suitColor = (s.currentSuit === 'hearts' || s.currentSuit === 'diamonds') ? 'red' : 'black';
                 cardEl.classList.add(suitColor);
             }
             discardPileEl.appendChild(cardEl);
         }
 
-
-        // Update counts
-        document.getElementById('draw-count').innerText = this.deck.cards.length;
+        // ── Counters ──────────────────────────────────────────────────────────
+        document.getElementById('draw-count').innerText = s.deck.length;
         document.getElementById('player-total-score').innerText = this.playerTotalScore;
         document.getElementById('computer-total-score').innerText = this.computerTotalScore;
-        document.getElementById('current-round').innerText = this.currentRound;
+        document.getElementById('current-round').innerText = s.roundNumber;
 
-        // Draw pile click
+        // Suit selector visibility (only my seat may pick).
+        const suitSelEl = document.getElementById('suit-selector');
+        if (suitSelEl) {
+            const showForJokerInProgress = this._pendingJokerCardId != null;
+            const showForRemoteJoker = s.pendingSuitSeat === this.mySeat;
+            if (showForJokerInProgress || showForRemoteJoker) suitSelEl.classList.remove('hidden');
+            else suitSelEl.classList.add('hidden');
+        }
+
+        // ── Draw pile interactivity ──────────────────────────────────────────
         const drawPileEl = document.getElementById('draw-pile');
-        if (this.turn === 'player' && !this.isPendingSuitSelection) {
+        if (myTurn) {
             drawPileEl.style.cursor = 'pointer';
             drawPileEl.onclick = () => this.playerDraw();
         } else {
@@ -361,9 +723,21 @@ class Game {
             drawPileEl.onclick = null;
         }
 
-        // Highlight active turn
-        document.getElementById('player-hand').style.opacity = this.turn === 'player' ? '1' : '0.6';
-        document.getElementById('computer-hand').style.opacity = this.turn === 'computer' ? '1' : '0.6';
+        playerHandEl.style.opacity = myTurn ? '1' : '0.6';
+
+        // ── Pause banner ──────────────────────────────────────────────────────
+        const pauseEl = document.getElementById('pause-banner');
+        if (pauseEl) {
+            if (s.paused) pauseEl.classList.remove('hidden');
+            else pauseEl.classList.add('hidden');
+        }
+
+        // Tournament-score widget makes sense for the legacy 1H+1AI room only.
+        const scoreBoardEl = document.querySelector('.score-board');
+        if (scoreBoardEl) {
+            const isLegacy = s.numSeats === 2 && s.seats[0]?.type === 'human' && s.seats[1]?.type === 'ai';
+            scoreBoardEl.style.display = isLegacy ? '' : 'none';
+        }
     }
 
     getSuitSymbol(suit) {
@@ -371,397 +745,92 @@ class Game {
         return symbols[suit] || '';
     }
 
-    isPlayable(card) {
-        if (this.pickupStack > 0) {
-            return card.rank === '2';
-        }
-        if (card.rank === 'Joker') return true;
-        return card.suit === this.currentSuit || card.rank === this.currentRank;
-    }
-
-    playCard(card, playerType) {
-        if (this.gameOver) return;
-
-        const hand = playerType === 'player' ? this.playerHand : this.computerHand;
-        const index = hand.findIndex(c => c.id === card.id);
-        if (index === -1) return;
-
-        // Move card to discard
-        hand.splice(index, 1);
-        this.discardPile.push(card);
-        this.currentRank = card.rank;
-        this.currentSuit = card.suit;
-
-        // Visual Feedback: Add playing class to hand card before it disappears
-        this.updateUI(); 
-        
-        this.log(`${playerType === 'player' ? 'You' : 'Computer'} played ${card.rank} of ${card.suit === 'wild' ? 'Wild' : card.suit}`);
-
-
-        // Check for Win
-        if (hand.length === 0) {
-            this.endRound(playerType);
-            return;
-        }
-
-        // Handle Special Cards
-        let skipTurn = false;
-        if (card.rank === '2') {
-            this.pickupStack += 2;
-            this.log(`Pickup stack increased to ${this.pickupStack}!`);
-            this.shakeBoard('danger');
-        } else if (card.rank === '3') {
-            skipTurn = true;
-            this.log(`${playerType === 'player' ? 'Computer' : 'You'} skipped!`);
-        } else if (card.rank === 'Joker') {
-            this.shakeBoard('accent');
-            if (playerType === 'player') {
-
-                this.isPendingSuitSelection = true;
-                document.getElementById('suit-selector').classList.remove('hidden');
-                this.updateUI();
-                return; // Wait for suit selection
-            } else {
-                this.aiSelectSuit();
-            }
-        }
-
-
-        // Next Turn
-        if (!skipTurn) {
-            this.turn = (playerType === 'player') ? 'computer' : 'player';
-        }
-
-        if (this.turn === 'computer') {
-            setTimeout(() => this.computerTurn(), 1000);
-        }
-
-        this.updateUI();
-    }
-
-    playerDraw() {
-        if (this.turn !== 'player' || this.isPendingSuitSelection) return;
-
-        if (this.pickupStack > 0) {
-            this.log(`Picking up ${this.pickupStack} cards...`);
-            for (let i = 0; i < this.pickupStack; i++) {
-                const card = this.deck.draw();
-                if (card) this.playerHand.push(card);
-                else {
-                    this.reshuffle();
-                    const c = this.deck.draw();
-                    if (c) this.playerHand.push(c);
-                }
-            }
-            this.pickupStack = 0;
-            this.turn = 'computer';
-            setTimeout(() => this.computerTurn(), 1000);
-        } else {
-            const card = this.deck.draw();
-            if (card) {
-                this.playerHand.push(card);
-                this.log(`You drew a card.`);
-                
-                // Animate draw
-                this.updateUI();
-                const newCardEl = document.querySelector(`.player-hand .card[data-id="${card.id}"]`);
-                if (newCardEl) newCardEl.classList.add('drawing');
-
-                // If the player still can't play, they skip.
-
-                // But in Switch, you can usually play the card you just drew if it's playable.
-                // We'll allow one play after draw if playable, else pass.
-                if (!this.isPlayable(card)) {
-                   this.turn = 'computer';
-                   setTimeout(() => this.computerTurn(), 1000);
-                }
-            } else {
-                if (this.reshuffle()) {
-                    this.playerDraw();
-                } else {
-                    this.log("No more cards in deck!");
-                    this.turn = 'computer';
-                    setTimeout(() => this.computerTurn(), 1000);
-                }
-            }
-        }
-        this.updateUI();
-    }
-
-    reshuffle() {
-        if (this.discardPile.length <= 1) return false;
-
-        // Show reshuffle notification
-        this.showReshuffleNotification();
-
-        // Add animation to draw pile
-        const drawPileEl = document.getElementById('draw-pile');
-        if (drawPileEl) {
-            drawPileEl.classList.add('reshuffling');
-            setTimeout(() => drawPileEl.classList.remove('reshuffling'), 1200);
-        }
-
-        // Add animation to discard pile cards
-        const discardPileEl = document.getElementById('discard-pile');
-        if (discardPileEl) {
-            const cards = discardPileEl.querySelectorAll('.card');
-            cards.forEach(card => {
-                card.classList.add('reshuffling');
-                setTimeout(() => card.classList.remove('reshuffling'), 800);
-            });
-        }
-
-        this.log("🔄 Deck reshuffled!");
-        const topCard = this.discardPile.pop();
-        this.deck.cards = [...this.discardPile];
-        this.deck.shuffle();
-        this.discardPile = [topCard];
-        return true;
-    }
-
     showReshuffleNotification() {
         const notification = document.createElement('div');
         notification.className = 'reshuffle-notification';
         notification.innerHTML = '🔄 Reshuffling Deck...';
         document.body.appendChild(notification);
-
         setTimeout(() => notification.remove(), 1600);
     }
 
-    selectSuit(suit) {
-        this.currentSuit = suit;
-        this.isPendingSuitSelection = false;
-        document.getElementById('suit-selector').classList.add('hidden');
-        this.log(`Suit changed to ${suit}.`);
-        this.turn = 'computer';
-        setTimeout(() => this.computerTurn(), 1000);
-        this.updateUI();
+    shakeBoard(type = 'accent') {
+        const board = document.getElementById('game-board');
+        if (!board) return;
+        board.classList.remove('shake-accent', 'shake-danger');
+        void board.offsetWidth;
+        board.classList.add(`shake-${type}`);
+        setTimeout(() => board.classList.remove(`shake-${type}`), 500);
     }
 
-    aiSelectSuit() {
-        // Pick most frequent suit in computer hand
-        const counts = {};
-        this.computerHand.forEach(c => {
-            if (c.suit !== 'wild') {
-                counts[c.suit] = (counts[c.suit] || 0) + 1;
-            }
-        });
-        let maxSuit = SUITS[Math.floor(Math.random() * SUITS.length)];
-        let maxCount = -1;
-        for (const s in counts) {
-            if (counts[s] > maxCount) {
-                maxCount = counts[s];
-                maxSuit = s;
-            }
-        }
-        this.currentSuit = maxSuit;
-        this.log(`Computer changed suit to ${maxSuit}.`);
-    }
-
-    computerTurn() {
-        if (this.gameOver) return;
-
-        // If must pick up
-        if (this.pickupStack > 0) {
-            const playable2s = this.computerHand.filter(c => c.rank === '2');
-            if (playable2s.length > 0) {
-                this.playCard(playable2s[0], 'computer');
-                return;
-            } else {
-                this.log(`Computer picks up ${this.pickupStack} cards.`);
-                for (let i = 0; i < this.pickupStack; i++) {
-                    const card = this.deck.draw();
-                    if (card) this.computerHand.push(card);
-                    else {
-                        this.reshuffle();
-                        const c = this.deck.draw();
-                        if (c) this.computerHand.push(c);
-                    }
-                }
-                this.pickupStack = 0;
-                this.turn = 'player';
-                this.updateUI();
-                return;
-            }
-        }
-
-        // Strategic AI:
-        // 1. Playable cards
-        const playableCards = this.computerHand.filter(c => this.isPlayable(c));
-        
-        if (playableCards.length === 0) {
-            // Draw
-            const card = this.deck.draw();
-            if (card) {
-                this.computerHand.push(card);
-                this.log(`Computer drew a card.`);
-                if (this.isPlayable(card)) {
-                    // AI plays drawn card if possible
-                    setTimeout(() => this.playCard(card, 'computer'), 500);
-                } else {
-                    this.turn = 'player';
-                    this.updateUI();
-                }
-            } else {
-                if (this.reshuffle()) {
-                    this.computerTurn();
-                } else {
-                    this.log("No more cards in deck!");
-                    this.turn = 'player';
-                    this.updateUI();
-                }
-            }
-            return;
-        }
-
-        // Heuristic: play high value cards first, priority to Jokers and 2s if stacking, or face cards.
-        playableCards.sort((a, b) => b.value - a.value);
-        
-        // Priority to 2s if stacking is NOT active (start stacking)
-        const twos = playableCards.filter(c => c.rank === '2');
-        if (twos.length > 0) {
-             this.playCard(twos[0], 'computer');
-             return;
-        }
-
-        // Priority to Jokers if high value
-        const jokers = playableCards.filter(c => c.rank === 'Joker');
-        if (jokers.length > 0) {
-            this.playCard(jokers[0], 'computer');
-            return;
-        }
-
-        // Otherwise play highest value card
-        this.playCard(playableCards[0], 'computer');
-    }
-
-    // Drag and Drop Handlers
+    // ── Drag & Drop (reorder own hand) ───────────────────────────────────────
     handleDragStart(e, cardId) {
         this.draggedCardId = cardId;
         e.target.classList.add('dragging');
         e.dataTransfer.setData('text/plain', cardId);
         e.dataTransfer.effectAllowed = 'move';
     }
-
     handleDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         const target = e.target.closest('.card');
-        if (target && !target.classList.contains('dragging')) {
-            target.classList.add('drag-over');
-        }
+        if (target && !target.classList.contains('dragging')) target.classList.add('drag-over');
     }
-
-    handleDragEnd(e) {
+    handleDragEnd() {
         document.querySelectorAll('.card').forEach(c => {
             c.classList.remove('dragging');
             c.classList.remove('drag-over');
         });
     }
-
     handleDrop(e, targetIndex) {
         e.preventDefault();
         const cardId = e.dataTransfer.getData('text/plain');
-        const sourceIndex = this.playerHand.findIndex(c => c.id === cardId);
-        
+        const hand = this.state.hands[this.mySeat];
+        const sourceIndex = hand.findIndex(c => c.id === cardId);
         if (sourceIndex !== -1 && sourceIndex !== targetIndex) {
-            // Reorder array
-            const [movedCard] = this.playerHand.splice(sourceIndex, 1);
-            this.playerHand.splice(targetIndex, 0, movedCard);
+            const [moved] = hand.splice(sourceIndex, 1);
+            hand.splice(targetIndex, 0, moved);
             this.updateUI();
         }
-        
-        this.handleDragEnd(null);
-    }
-
-    // Touch-friendly reordering (tap to select, tap to swap)
-    handleCardClick(card, index) {
-        if (this.turn !== 'player' || this.isPendingSuitSelection) return;
-
-        // If it's playable, play it (existing logic)
-        if (this.isPlayable(card)) {
-            this.playCard(card, 'player');
-            this.selectedCardIndex = null;
-            return;
-        }
-
-        // Otherwise, treat as selection for reordering
-        if (this.selectedCardIndex === null) {
-            this.selectedCardIndex = index;
-            this.updateUI();
-        } else {
-            if (this.selectedCardIndex !== index) {
-                // Swap
-                const [movedCard] = this.playerHand.splice(this.selectedCardIndex, 1);
-                this.playerHand.splice(index, 0, movedCard);
-            }
-            this.selectedCardIndex = null;
-            this.updateUI();
-        }
-    }
-
-    calculateHandScore(hand) {
-        return hand.reduce((total, card) => total + card.value, 0);
-    }
-
-    endRound(winner) {
-        this.gameOver = true;
-        const playerScore = this.calculateHandScore(this.playerHand);
-        const computerScore = this.calculateHandScore(this.computerHand);
-
-        this.playerTotalScore += playerScore;
-        this.computerTotalScore += computerScore;
-
-        const roundScoresEl = document.getElementById('round-scores');
-        roundScoresEl.innerHTML = `
-            <p>Your hand: ${playerScore} points</p>
-            <p>Computer hand: ${computerScore} points</p>
-        `;
-
-        const title = document.getElementById('round-result-title');
-        title.innerText = (playerScore < computerScore) ? "You Won the Round!" : "Computer Won the Round!";
-        
-        document.getElementById('round-end-overlay').classList.remove('hidden');
-        document.body.classList.add('no-scroll');
-
-        this.saveState();
-
-        document.getElementById('next-round-btn').onclick = () => {
-             document.getElementById('round-end-overlay').classList.add('hidden');
-             document.body.classList.remove('no-scroll');
-             this.currentRound++;
-             this.startRound();
-        };
-    }
-
-    endGame() {
-        document.getElementById('game-end-overlay').classList.remove('hidden');
-        document.body.classList.add('no-scroll');
-        const winner = this.playerTotalScore < this.computerTotalScore ? "You" : "Computer";
-        document.getElementById('game-winner').innerText = `${winner} Won the Game!`;
-        document.getElementById('final-scores').innerHTML = `
-            <p>Final Scores:</p>
-            <p>You: ${this.playerTotalScore}</p>
-            <p>Computer: ${this.computerTotalScore}</p>
-        `;
-    }
-
-    shakeBoard(type = 'accent') {
-        const board = document.getElementById('game-board');
-        board.classList.remove('shake-accent', 'shake-danger');
-        void board.offsetWidth; // Force reflow
-        board.classList.add(`shake-${type}`);
-        setTimeout(() => board.classList.remove(`shake-${type}`), 500);
+        this.handleDragEnd();
     }
 }
 
+// HTML escape for displayName (could be user-provided in a multiplayer lobby).
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ── Bootstrap (called from setup screen, not auto on window.onload) ──────────────
 let game;
 
-
-function startGame() {
+function startSoloGame() {
     game = new Game();
     game.loadState();
     game.startRound();
+    showGameBoard();
+}
+
+function startGameWithSeats(seats, mySeat, opts = {}) {
+    game = new Game({ seats, mySeat, ...opts });
+    if (seats.length === 2 && seats[0].type === 'human' && seats[1].type === 'ai') {
+        game.loadState();
+    }
+    if (!opts.skipDeal) game.startRound();
+    showGameBoard();
+}
+
+function showGameBoard() {
+    const setup = document.getElementById('setup-screen');
+    if (setup) setup.classList.add('hidden');
+    const board = document.getElementById('game-board');
+    if (board) board.classList.remove('hidden');
+}
+
+function showSetupScreen() {
+    const setup = document.getElementById('setup-screen');
+    if (setup) setup.classList.remove('hidden');
+    const board = document.getElementById('game-board');
+    if (board) board.classList.add('hidden');
 }
 
 function resetTournament() {
@@ -783,11 +852,6 @@ function toggleHighlight(enabled) {
     }
 }
 
-// Initialize on load
-window.onload = () => {
-    startGame();
-};
-
 function selectSuit(suit) {
     if (game) game.selectSuit(suit);
 }
@@ -796,7 +860,7 @@ function toggleMobileMenu() {
     const menu = document.getElementById('mobile-menu');
     const btn = document.getElementById('hamburger-btn');
     const isOpen = menu.classList.toggle('open');
-    btn.textContent = isOpen ? '\u2715' : '\u2630';
+    btn.textContent = isOpen ? '✕' : '☰';
 }
 
 function closeMobileMenu() {
@@ -804,7 +868,7 @@ function closeMobileMenu() {
     const btn = document.getElementById('hamburger-btn');
     if (menu && menu.classList.contains('open')) {
         menu.classList.remove('open');
-        btn.textContent = '\u2630';
+        btn.textContent = '☰';
     }
 }
 
@@ -819,3 +883,11 @@ function hideHowToPlay() {
     document.body.classList.remove('no-scroll');
 }
 
+window.onload = () => {
+    if (window.SetupUI && window.SetupUI.init) {
+        window.SetupUI.init();
+    } else {
+        // Fallback: start solo immediately (parity with old behavior).
+        startSoloGame();
+    }
+};
