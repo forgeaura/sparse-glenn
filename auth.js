@@ -73,6 +73,21 @@ client.auth.onAuthStateChange(async (event, session) => {
     AuthManager._cachedUser = user; // Ensure cache is sync
     updateSidebarAuthUI(user);
 
+    // Surface auth events to the page so the user can see what's happening
+    // without needing devtools. This is invaluable when OAuth silently fails.
+    try {
+        const banner = document.getElementById('auth-status-banner');
+        if (banner) {
+            const t = new Date().toLocaleTimeString();
+            const who = user ? user.email || user.id.slice(0, 8) : 'no user';
+            banner.textContent = `[${t}] auth: ${event} — ${who}`;
+            banner.classList.remove('hidden');
+            if (user && event === 'SIGNED_IN') {
+                setTimeout(() => banner.classList.add('hidden'), 4000);
+            }
+        }
+    } catch (_) {}
+
     if (!user) return;
 
     const remoteState = await loadStateFromSupabase(user.id);
@@ -226,6 +241,30 @@ const AuthManager = {
         if (error) showAuthError(friendlyError(error.message));
     },
 
+    // Wipe any stuck/stale Supabase auth state from localStorage so the next
+    // sign-in attempt starts completely fresh. Useful when an earlier OAuth
+    // attempt left behind a partial session that's blocking new sign-ins.
+    async resetAuthState() {
+        try { await client.auth.signOut({ scope: 'local' }); } catch (_) {}
+        // Supabase persists auth under sb-<projectRef>-auth-token. Clear ALL
+        // sb-* keys to be safe.
+        try {
+            const keys = Object.keys(localStorage);
+            for (const k of keys) {
+                if (k.startsWith('sb-') || k.startsWith('supabase.')) localStorage.removeItem(k);
+            }
+        } catch (_) {}
+        try {
+            const keys = Object.keys(sessionStorage);
+            for (const k of keys) {
+                if (k.startsWith('sb-') || k.startsWith('supabase.')) sessionStorage.removeItem(k);
+            }
+        } catch (_) {}
+        this._cachedUser = null;
+        updateSidebarAuthUI(null);
+        showAuthError('Auth state cleared. Try signing in again.');
+    },
+
     async signOut() {
         // If we're inside a multiplayer room, disconnect and return to setup
         // before clearing auth — otherwise the user is left stranded on the
@@ -257,5 +296,42 @@ const AuthManager = {
 client.auth.getSession().then(({ data: { session } }) => {
     AuthManager._cachedUser = session?.user ?? null;
 });
+
+// Detect when we landed back from an OAuth provider (URL contains code= or
+// access_token=) but no session was established within a reasonable window.
+// That's the classic "Brave blocked the callback cookie" failure. Show a
+// visible error pointing the user at the recovery options.
+(function detectFailedOAuthCallback() {
+    const search = window.location.search || '';
+    const hash = window.location.hash || '';
+    const looksLikeOAuthReturn =
+        /[?&](code|access_token|error|error_description)=/.test(search) ||
+        /[?&#](access_token|error)=/.test(hash);
+    if (!looksLikeOAuthReturn) return;
+
+    const banner = document.getElementById('auth-status-banner');
+    if (banner) {
+        banner.textContent = 'Processing OAuth callback…';
+        banner.classList.remove('hidden');
+    }
+
+    // Wait up to 6s for SIGNED_IN. If it never fires, the callback failed.
+    let resolved = false;
+    const sub = client.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_IN') resolved = true;
+    });
+    setTimeout(() => {
+        try { sub?.data?.subscription?.unsubscribe?.(); } catch (_) {}
+        if (resolved) return;
+        if (!banner) return;
+        // Pull the error param if present so the user sees the real reason.
+        const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+        const errParam = params.get('error_description') || params.get('error') || '';
+        banner.textContent = errParam
+            ? `OAuth callback failed: ${errParam}. Tap "Stuck? Reset auth state" in the sign-in modal and try again, or use email/password.`
+            : `OAuth completed but no session was created — likely browser blocked the auth cookie (Brave Shields, third-party cookie blocking, etc.). Tap "Stuck? Reset auth state" and try email/password instead.`;
+        banner.classList.remove('hidden');
+    }, 6000);
+})();
 
 window.AuthManager = AuthManager;

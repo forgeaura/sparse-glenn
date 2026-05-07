@@ -7,13 +7,16 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Switch Card Game</title>
-    <link rel="stylesheet" href="style.css?v=20">
+    <link rel="stylesheet" href="style.css?v=21">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="game-container">
+
+        <!-- Auth status banner — surfaces auth state changes for debugging -->
+        <div id="auth-status-banner" class="auth-status-banner hidden"></div>
 
         <!-- Setup screen: Solo / Create Room / Join Room -->
         <div id="setup-screen" class="setup-screen">
@@ -298,14 +301,15 @@
                     <button class="btn btn-outline btn-small" id="auth-toggle-btn" onclick="AuthManager.toggleMode()">Register</button>
                 </div>
                 <button class="btn btn-outline btn-small" onclick="AuthManager.closeModal()" style="margin-top:1rem">Play as Guest</button>
+                <button class="btn btn-outline btn-small" onclick="AuthManager.resetAuthState()" style="margin-top:0.5rem;font-size:0.75rem;opacity:0.7" title="Clears any stuck/stale Supabase auth from local storage">Stuck? Reset auth state</button>
             </div>
         </div>
 
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="auth.js?v=20"></script>
-    <script src="game.js?v=20"></script>
-    <script src="multiplayer.js?v=20"></script>
-    <script src="setup.js?v=20"></script>
+    <script src="auth.js?v=21"></script>
+    <script src="game.js?v=21"></script>
+    <script src="multiplayer.js?v=21"></script>
+    <script src="setup.js?v=21"></script>
 </body>
 </html>
