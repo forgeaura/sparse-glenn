@@ -279,11 +279,25 @@
             showError('No room yet — wait for the room code to appear, then try again.');
             return;
         }
+        const buttons = ['setup-add-ai', 'setup-join-add-ai']
+            .map(id => document.getElementById(id))
+            .filter(Boolean);
+        buttons.forEach(b => { b.disabled = true; b.dataset.origText = b.textContent; b.textContent = 'Adding…'; });
         try {
-            await window.MP.addAISeat(code);
+            await Promise.race([
+                window.MP.addAISeat(code),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('add_ai_seat timed out after 15s')), 15000)),
+            ]);
             await refreshLobbySeats();
         } catch (e) {
-            showError(e.message);
+            const msg = e?.message || String(e);
+            if (/outside lobby|cannot modify seats/i.test(msg)) {
+                showError(`Can't add AI to room ${code} — it's already in progress. Leave the room and create a new one (or pick Persistent next time so people can still join after the game starts).`);
+            } else {
+                showError(`Could not add AI: ${msg}`);
+            }
+        } finally {
+            buttons.forEach(b => { b.disabled = false; if (b.dataset.origText) b.textContent = b.dataset.origText; });
         }
     }
 
@@ -304,10 +318,13 @@
 
     async function attemptJoin(code) {
         try {
-            const seatIndex = await window.MP.joinRoom({
-                code,
-                displayName: window.AuthManager.currentUser.email?.split('@')[0] || 'Player',
-            });
+            const seatIndex = await Promise.race([
+                window.MP.joinRoom({
+                    code,
+                    displayName: window.AuthManager.currentUser.email?.split('@')[0] || 'Player',
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('join_room timed out after 15s')), 15000)),
+            ]);
             $('setup-join-pending')?.classList.add('hidden');
             if (pendingPollHandle) { clearInterval(pendingPollHandle); pendingPollHandle = null; }
             pendingApprovalCode = null;
@@ -316,7 +333,10 @@
             mySeatIndex = seatIndex;
             const room = await window.MP.getRoom(code);
             if (room.status === 'playing') {
-                await window.MP.enterRoom(code, seatIndex);
+                await Promise.race([
+                    window.MP.enterRoom(code, seatIndex),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('enterRoom timed out after 15s')), 15000)),
+                ]);
                 return;
             }
             $('setup-join-lobby').classList.remove('hidden');
@@ -351,27 +371,55 @@
             showError('No room yet — sign in and open the Create tab to generate a code.');
             return;
         }
+        if (mySeatIndex == null) {
+            showError(`Couldn't find your seat in room ${code}. Try Leave then Open from My Rooms.`);
+            return;
+        }
+        const buttons = ['setup-start-game', 'setup-join-start']
+            .map(id => document.getElementById(id))
+            .filter(Boolean);
+        buttons.forEach(b => { b.disabled = true; b.dataset.origText = b.textContent; b.textContent = 'Starting…'; });
         try {
-            await window.MP.startRoom(code);
+            await Promise.race([
+                window.MP.startRoom(code),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('start_room timed out after 15s')), 15000)),
+            ]);
             if (pollHandle) { clearInterval(pollHandle); pollHandle = null; }
-            await window.MP.enterRoom(code, mySeatIndex);
+            await Promise.race([
+                window.MP.enterRoom(code, mySeatIndex),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('enterRoom timed out after 15s — could not load room/seats/game_state')), 15000)),
+            ]);
         } catch (e) {
-            showError(e.message);
+            showError(`Could not start room ${code}: ${e?.message || e}`);
+        } finally {
+            buttons.forEach(b => { b.disabled = false; if (b.dataset.origText) b.textContent = b.dataset.origText; });
         }
     }
 
     // ── My Rooms tab ─────────────────────────────────────────────────────────
     async function refreshMyRooms() {
         if (!window.AuthManager?.currentUser) return;
+        // Always render an empty list/stats first so the panel never shows up
+        // completely blank — even if both RPCs fail.
+        renderLifetimeStats(null);
+        renderMyRooms([]);
+        let errs = [];
+        let rooms = [];
+        let stats = null;
         try {
-            const [rooms, stats] = await Promise.all([
-                window.MP.listMyRooms(),
-                window.MP.getMyLifetimeStats(),
-            ]);
-            renderLifetimeStats(stats);
-            renderMyRooms(rooms);
+            rooms = await window.MP.listMyRooms();
         } catch (e) {
-            console.warn('My Rooms refresh failed:', e.message);
+            errs.push(`list_my_rooms: ${e.message}`);
+        }
+        try {
+            stats = await window.MP.getMyLifetimeStats();
+        } catch (e) {
+            errs.push(`user_lifetime_stats: ${e.message}`);
+        }
+        renderLifetimeStats(stats);
+        renderMyRooms(rooms);
+        if (errs.length) {
+            showError(`Could not load My Rooms (${errs.join('; ')}). Check that migration 002 fully applied and run "notify pgrst, 'reload schema';" in Supabase SQL Editor.`);
         }
     }
 
@@ -430,19 +478,23 @@
 
     async function onResumeRoom(code, status, kind) {
         clearError();
+        const btn = document.querySelector(`.my-room-row[data-code="${code}"] [data-act="resume"]`);
+        if (btn) { btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = 'Opening…'; }
         try {
             if (status === 'paused' && kind === 'persistent') {
                 await window.MP.resumeRoom(code);
             }
             // Treat "open" the same as joining the lobby — go through join_room (idempotent for members).
             joinCode = code;
-            createCode = null; // resume from join side; admin pane will surface from membership data
+            createCode = null;
             $('setup-join-lobby').classList.remove('hidden');
             activateTab('join');
             $('setup-join-code').value = code;
             await attemptJoin(code);
         } catch (e) {
-            showError(e.message);
+            showError(`Could not open ${code}: ${e?.message || e}`);
+        } finally {
+            if (btn) { btn.disabled = false; if (btn.dataset.origText) btn.textContent = btn.dataset.origText; }
         }
     }
 

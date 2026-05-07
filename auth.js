@@ -215,9 +215,13 @@ const AuthManager = {
     },
 
     async signInWithGoogle() {
+        // Use a clean URL (no hash, no query) so it matches Supabase's allow-list
+        // exactly — leaving #join or ?code=... in the redirectTo causes Supabase
+        // to reject the callback when the URL doesn't precisely match an entry.
+        const cleanReturnUrl = window.location.origin + window.location.pathname;
         const { error } = await client.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: window.location.href }
+            options: { redirectTo: cleanReturnUrl }
         });
         if (error) showAuthError(friendlyError(error.message));
     },
