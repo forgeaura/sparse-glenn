@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Switch Card Game</title>
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=15">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -142,6 +142,14 @@
         <!-- Pause banner (multiplayer) -->
         <div id="pause-banner" class="pause-banner hidden">
             <span>⏸ Game paused — waiting for a player to reconnect…</span>
+        </div>
+
+        <!-- Online room indicator (multiplayer only) -->
+        <div id="online-room-bar" class="online-room-bar hidden">
+            <span class="online-room-label">Room</span>
+            <span class="online-room-code" id="online-room-code">—</span>
+            <button class="btn btn-small btn-outline" id="online-copy-code">Copy</button>
+            <button class="btn btn-small btn-outline" id="online-leave-room">Leave</button>
         </div>
 
         <div id="game-board" class="hidden">
@@ -295,9 +303,9 @@
 
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="auth.js?v=14"></script>
-    <script src="game.js?v=14"></script>
-    <script src="multiplayer.js?v=14"></script>
-    <script src="setup.js?v=14"></script>
+    <script src="auth.js?v=15"></script>
+    <script src="game.js?v=15"></script>
+    <script src="multiplayer.js?v=15"></script>
+    <script src="setup.js?v=15"></script>
 </body>
 </html>

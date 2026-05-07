@@ -304,6 +304,14 @@
         // Apply the current state into the local Game.
         applyDbStateToGame(stateRow, seatsRow);
 
+        // Show the room bar so the user can copy the code or leave.
+        const bar = document.getElementById('online-room-bar');
+        const codeEl = document.getElementById('online-room-code');
+        if (bar && codeEl) {
+            codeEl.textContent = code;
+            bar.classList.remove('hidden');
+        }
+
         // Subscribe to game_states + room_seats + presence on a single channel.
         const ch = sb().channel(`room:${code}`, {
             config: { presence: { key: window.AuthManager.currentUser.id } },

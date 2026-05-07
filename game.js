@@ -839,7 +839,23 @@ function showSetupScreen() {
     if (setup) setup.classList.remove('hidden');
     const board = document.getElementById('game-board');
     if (board) board.classList.add('hidden');
+    const bar = document.getElementById('online-room-bar');
+    if (bar) bar.classList.add('hidden');
 }
+
+// Disconnect from the active multiplayer room and return to the setup screen.
+// Persistent rooms are left in their current state (you'll see them in My Rooms);
+// one-off rooms keep playing for any other humans still connected.
+function leaveOnlineRoom() {
+    if (window.MP) {
+        try { window.MP.disconnect(); } catch (_) {}
+    }
+    game = null;
+    showSetupScreen();
+    // Re-render setup tabs so My Rooms reflects fresh state if user goes there.
+    if (window.SetupUI?.show) window.SetupUI.show();
+}
+window.leaveOnlineRoom = leaveOnlineRoom;
 
 function resetTournament() {
     if (confirm("Are you sure you want to reset the tournament? All scores will be lost.")) {
