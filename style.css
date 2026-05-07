@@ -1213,6 +1213,22 @@ body::after {
 }
 .setup-auth-banner p { margin: 0 0 8px; font-size: 0.9rem; }
 
+/* ── Auth status banner (top of page, surfaces auth events) ────────────── */
+.auth-status-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2000;
+    background: rgba(40, 30, 60, 0.95);
+    color: #f4d678;
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,200,100,0.3);
+}
+.auth-status-banner.hidden { display: none; }
+
 /* ── Online room indicator bar (visible during multiplayer games) ──────── */
 .online-room-bar {
     position: fixed;
