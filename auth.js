@@ -145,7 +145,12 @@ const AuthManager = {
         const cleanReturnUrl = window.location.origin + window.location.pathname;
         const { error } = await client.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: cleanReturnUrl }
+            options: { 
+                redirectTo: cleanReturnUrl,
+                queryParams: {
+                    prompt: 'select_account'
+                }
+            }
         });
         if (error) showAuthError(friendlyError(error.message));
     },
