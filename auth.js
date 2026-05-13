@@ -16,7 +16,6 @@ const SUPABASE_ANON_KEY = 'sb_publishable_DBHsEayqtgagTjrsm9nk-w_WpcYb3OU';
 // in the hash and supabase-js parses it client-side.
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
-        flowType: 'implicit',
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
@@ -155,6 +154,7 @@ const AuthManager = {
             provider: 'google',
             options: { 
                 redirectTo: cleanReturnUrl,
+                flowType: 'implicit',
                 queryParams: {
                     prompt: 'select_account'
                 }
@@ -180,6 +180,8 @@ const AuthManager = {
         this._isGuest = false;
         sessionStorage.removeItem('switch_guest_mode');
         updateSidebarAuthUI(null);
+        const banner = document.getElementById('auth-status-banner');
+        if (banner) banner.classList.add('hidden');
         showAuthError('Auth state cleared. Try signing in again.');
         document.dispatchEvent(new CustomEvent('authStateChanged'));
     },
