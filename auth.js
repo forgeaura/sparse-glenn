@@ -282,6 +282,12 @@ client.auth.onAuthStateChange(async (event, session) => {
         sessionStorage.removeItem('switch_guest_mode');
         AuthManager._isGuest = false;
         try { AuthManager.closeModal(); } catch (_) {}
+        // Clear any false-alarm "OAuth completed but no session was created" banner
+        // that may have been shown by the detectFailedOAuthCallback timeout.
+        try {
+            const banner = document.getElementById('auth-status-banner');
+            if (banner) banner.classList.add('hidden');
+        } catch (_) {}
         document.dispatchEvent(new CustomEvent('authStateChanged'));
     }
 
@@ -371,9 +377,17 @@ function friendlyError(message) {
     const sub = client.auth.onAuthStateChange((event) => {
         if (event === 'SIGNED_IN') resolved = true;
     });
+    // 15 s gives Supabase-js enough runway to parse the hash token even on
+    // slow connections or after a CDN cold-start on GitHub Pages.
     setTimeout(() => {
+        if (resolved) {
+            // Session established — clean up the inner subscription and bail.
+            try { sub?.data?.subscription?.unsubscribe?.(); } catch (_) {}
+            return;
+        }
+        // Only unsubscribe after we know it's a genuine failure, not before,
+        // so a late SIGNED_IN event can still flip `resolved`.
         try { sub?.data?.subscription?.unsubscribe?.(); } catch (_) {}
-        if (resolved) return;
         if (!banner) return;
         const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
         const errParam = params.get('error_description') || params.get('error') || '';
@@ -381,5 +395,5 @@ function friendlyError(message) {
             ? `OAuth callback failed: ${errParam}. Tap "Stuck? Reset auth state" and try again.`
             : `OAuth completed but no session was created. Tap "Stuck? Reset auth state" and try email/password instead.`;
         banner.classList.remove('hidden');
-    }, 6000);
+    }, 15000);
 })();
