@@ -160,7 +160,11 @@ const AuthManager = {
                 }
             }
         });
-        if (error) showAuthError(friendlyError(error.message));
+        if (error) {
+            showAuthError(friendlyError(error.message));
+        } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.info('%cNote: If Google redirects you to forgeaura.github.io instead of localhost, ensure http://localhost:8000 is in your Supabase "Allowed Redirect URLs".', 'color: #fcd34d; font-weight: bold;');
+        }
     },
 
     async resetAuthState() {
@@ -371,31 +375,39 @@ function friendlyError(message) {
 
     const banner = document.getElementById('auth-status-banner');
     if (banner) {
-        banner.textContent = 'Processing OAuth callback…';
+        banner.innerHTML = 'Processing OAuth callback… <button onclick="this.parentElement.classList.add(\'hidden\')" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:inherit;margin-left:8px">Dismiss</button>';
         banner.classList.remove('hidden');
     }
 
     let resolved = false;
+    let timerId = null;
+
     const sub = client.auth.onAuthStateChange((event) => {
-        if (event === 'SIGNED_IN') resolved = true;
+        if (event === 'SIGNED_IN') {
+            resolved = true;
+            if (timerId) clearTimeout(timerId);
+            try { sub?.data?.subscription?.unsubscribe?.(); } catch (_) {}
+            if (banner) banner.classList.add('hidden');
+        }
     });
+
     // 15 s gives Supabase-js enough runway to parse the hash token even on
     // slow connections or after a CDN cold-start on GitHub Pages.
-    setTimeout(() => {
-        if (resolved) {
-            // Session established — clean up the inner subscription and bail.
-            try { sub?.data?.subscription?.unsubscribe?.(); } catch (_) {}
-            return;
-        }
-        // Only unsubscribe after we know it's a genuine failure, not before,
-        // so a late SIGNED_IN event can still flip `resolved`.
+    timerId = setTimeout(() => {
+        if (resolved) return;
         try { sub?.data?.subscription?.unsubscribe?.(); } catch (_) {}
         if (!banner) return;
+        
         const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
         const errParam = params.get('error_description') || params.get('error') || '';
-        banner.textContent = errParam
-            ? `OAuth callback failed: ${errParam}. Tap "Stuck? Reset auth state" and try again.`
-            : `OAuth completed but no session was created. Tap "Stuck? Reset auth state" and try email/password instead.`;
+        
+        const resetLink = '<button onclick="AuthManager.resetAuthState()" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:inherit;padding:0">Stuck? Reset auth state</button>';
+        const dismissLink = '<button onclick="this.parentElement.classList.add(\'hidden\')" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font-size:inherit;margin-left:8px">Dismiss</button>';
+
+        banner.innerHTML = (errParam
+            ? `OAuth callback failed: ${errParam}. ${resetLink}`
+            : `OAuth completed but no session was created. ${resetLink}`) + dismissLink;
+        
         banner.classList.remove('hidden');
     }, 15000);
 })();
