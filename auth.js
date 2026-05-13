@@ -200,7 +200,12 @@ const AuthManager = {
         if (window.MP?.active && window.leaveOnlineRoom) {
             try { window.leaveOnlineRoom(); } catch (_) {}
         }
-        await client.auth.signOut();
+        try {
+            await client.auth.signOut();
+        } catch (err) {
+            console.warn('AuthManager: server sign out failed, clearing local state', err);
+            try { await client.auth.signOut({ scope: 'local' }); } catch (_) {}
+        }
         this._cachedUser = null;
         this._isGuest = false;
         sessionStorage.removeItem('switch_guest_mode');

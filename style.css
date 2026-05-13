@@ -1535,6 +1535,7 @@ body::after {
     align-items: center;
     gap: 12px;
     font-size: 0.85rem;
+    z-index: 10;
 }
 
 #setup-user-info {
