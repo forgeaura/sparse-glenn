@@ -61,12 +61,16 @@
         const user = window.AuthManager?.currentUser;
         if (!user) throw new Error('Sign in to join a multiplayer room.');
         if (!ROOM_CODE_RE.test(code)) throw new Error('Invalid room code.');
+        console.log(`[MP] Calling join_room for ${code}...`);
+        console.time(`join_room:${code}`);
         const { data, error } = await sb().rpc('join_room', {
             p_code: code,
             p_display_name: displayName || (user.email?.split('@')[0]) || 'Player',
         });
+        console.timeEnd(`join_room:${code}`);
         if (error) {
             const msg = error.message || '';
+            console.warn(`[MP] join_room error:`, error);
             if (msg.includes('pending_approval')) {
                 const e = new Error('pending_approval');
                 e.code = 'pending_approval';
@@ -84,6 +88,7 @@
             }
             throw new Error(msg || 'Failed to join.');
         }
+        console.log(`[MP] join_room success, seat:`, data);
         return data; // seat_index
     }
 
@@ -215,10 +220,17 @@
 
     async function startRoom(code) {
         // Server prunes excess AI if humans left, then sets status='playing'.
+        console.log(`[MP] Calling start_room RPC for ${code}...`);
+        console.time(`start_room_rpc:${code}`);
         const { error } = await sb().rpc('start_room', { p_code: code });
-        if (error) throw new Error(error.message);
+        console.timeEnd(`start_room_rpc:${code}`);
+        if (error) {
+            console.warn(`[MP] start_room RPC error:`, error);
+            throw new Error(error.message);
+        }
 
-        // Build the initial dealt state and write it via commit_turn (turn_seq = 0 → 1).
+        console.log(`[MP] Initializing game state for ${code}...`);
+        console.time(`start_room_init:${code}`);
         const [seatsRow, room] = await Promise.all([listSeats(code), getRoom(code)]);
         const numSeats = seatsRow.length;
         const numDecks = Math.max(1, Math.ceil(numSeats / 7));
@@ -261,13 +273,20 @@
             p_new_state: newState,
             p_new_seat: 0,
         });
-        if (rpcErr) throw new Error(rpcErr.message);
+        console.timeEnd(`start_room_init:${code}`);
+        if (rpcErr) {
+            console.warn(`[MP] start_room commit_turn error:`, rpcErr);
+            throw new Error(rpcErr.message);
+        }
         // Race lost (someone else already started) is fine — they'll just receive the broadcast.
+        console.log(`[MP] Room ${code} started successfully.`);
         return data;
     }
 
     // ── Joining a live room (subscribe + render) ──────────────────────────────
     async function enterRoom(code, mySeatIndex) {
+        console.log(`[MP] Entering room ${code} at seat ${mySeatIndex}...`);
+        console.time(`enter_room:${code}`);
         clearActive();
         const room = await getRoom(code);
         const seatsRow = await listSeats(code);
@@ -337,6 +356,7 @@
             }
         });
         active.channel = ch;
+        console.timeEnd(`enter_room:${code}`);
 
         // Kick off AI race in case it's already an AI's turn.
         scheduleAITurnIfNeeded();
