@@ -273,7 +273,6 @@
         $('setup-room-code').textContent = '…';
         const retryBtn = $('setup-retry-create');
         if (retryBtn) retryBtn.classList.add('hidden');
-
         let lastError = null;
         
         for (let attempt = 1; attempt <= 3; attempt++) {
@@ -638,6 +637,8 @@
         $('setup-add-ai').onclick = onAddAI;
         $('setup-join-add-ai').onclick = onAddAI;
         $('setup-copy-code').onclick = copyRoomCode;
+        const retryCreateBtn = $('setup-retry-create');
+        if (retryCreateBtn) retryCreateBtn.onclick = () => { createAttempted = false; onCreate(); };
         $('setup-join-btn').onclick = onJoin;
         $('setup-join-start').onclick = onStart;
         $('setup-start-game').onclick = onStart;
