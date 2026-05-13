@@ -25,6 +25,178 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 window.SB = client; // shared singleton for multiplayer.js
 
+// ── AuthManager (public API) ─────────────────────────────────────────────────
+// Define this early so listeners can use it safely
+const AuthManager = {
+    _isRegisterMode: false,
+    _isGuest: false,
+    _cachedUser: null,
+
+    continueAsGuest() {
+        console.log('AuthManager: continueAsGuest called');
+        this._isGuest = true;
+        sessionStorage.setItem('switch_guest_mode', '1');
+        this.closeModal();
+        document.dispatchEvent(new CustomEvent('authStateChanged'));
+    },
+
+    get isGuest() {
+        if (this._isGuest) return true;
+        if (sessionStorage.getItem('switch_guest_mode') === '1') {
+            this._isGuest = true;
+            return true;
+        }
+        return false;
+    },
+
+    get currentUser() {
+        return this._cachedUser ?? null;
+    },
+
+    openModal() {
+        console.log('AuthManager: openModal called');
+        this._isRegisterMode = false;
+        this._refreshModalUI();
+        clearAuthError();
+        const emailEl = document.getElementById('auth-email');
+        const passEl = document.getElementById('auth-password');
+        if (emailEl) emailEl.value = '';
+        if (passEl) passEl.value = '';
+        
+        const overlay = document.getElementById('auth-overlay');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            document.body.classList.add('no-scroll');
+            setTimeout(() => emailEl?.focus(), 100);
+        } else {
+            console.error('AuthManager: auth-overlay element not found!');
+        }
+    },
+
+    closeModal() {
+        const overlay = document.getElementById('auth-overlay');
+        if (overlay) overlay.classList.add('hidden');
+        document.body.classList.remove('no-scroll');
+    },
+
+    toggleMode() {
+        this._isRegisterMode = !this._isRegisterMode;
+        this._refreshModalUI();
+        clearAuthError();
+    },
+
+    _refreshModalUI() {
+        const isReg = this._isRegisterMode;
+        const titleEl = document.getElementById('auth-modal-title');
+        const submitBtn = document.getElementById('auth-submit-btn');
+        const toggleText = document.getElementById('auth-toggle-text');
+        const toggleBtn = document.getElementById('auth-toggle-btn');
+
+        if (titleEl) titleEl.textContent = isReg ? 'Create Account' : 'Sign In';
+        if (submitBtn) submitBtn.textContent = isReg ? 'Register' : 'Sign In';
+        if (toggleText) toggleText.textContent = isReg ? 'Already have an account?' : "Don't have an account?";
+        if (toggleBtn) toggleBtn.textContent = isReg ? 'Sign In' : 'Register';
+    },
+
+    async handleSubmit() {
+        clearAuthError();
+        const email = document.getElementById('auth-email').value.trim();
+        const password = document.getElementById('auth-password').value;
+        const submitBtn = document.getElementById('auth-submit-btn');
+
+        if (!email || !password) {
+            showAuthError('Please enter your email and password.');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Please wait…';
+
+        try {
+            if (this._isRegisterMode) {
+                const { data, error } = await client.auth.signUp({ email, password });
+                if (error) { showAuthError(friendlyError(error.message)); return; }
+                if (!data.session) {
+                    showAuthError(`Account created. Check ${email} for a confirmation link, then come back and sign in.`);
+                    return;
+                }
+                this._cachedUser = data.user;
+                if (window.game && data.user) {
+                    await saveStateToSupabase(data.user.id, window.game.getState());
+                }
+            } else {
+                const { data, error } = await client.auth.signInWithPassword({ email, password });
+                if (error) { showAuthError(friendlyError(error.message)); return; }
+                this._cachedUser = data.user;
+            }
+            this.closeModal();
+        } catch (err) {
+            showAuthError(friendlyError(err.message));
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                this._refreshModalUI();
+            }
+        }
+    },
+
+    async signInWithGoogle() {
+        console.log('AuthManager: signInWithGoogle called');
+        const cleanReturnUrl = window.location.origin + window.location.pathname;
+        const { error } = await client.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: cleanReturnUrl }
+        });
+        if (error) showAuthError(friendlyError(error.message));
+    },
+
+    async resetAuthState() {
+        console.log('AuthManager: resetAuthState called');
+        try { await client.auth.signOut({ scope: 'local' }); } catch (_) {}
+        try {
+            const keys = Object.keys(localStorage);
+            for (const k of keys) {
+                if (k.startsWith('sb-') || k.startsWith('supabase.')) localStorage.removeItem(k);
+            }
+            const skeys = Object.keys(sessionStorage);
+            for (const k of skeys) {
+                if (k.startsWith('sb-') || k.startsWith('supabase.')) sessionStorage.removeItem(k);
+            }
+        } catch (_) {}
+        this._cachedUser = null;
+        this._isGuest = false;
+        sessionStorage.removeItem('switch_guest_mode');
+        updateSidebarAuthUI(null);
+        showAuthError('Auth state cleared. Try signing in again.');
+        document.dispatchEvent(new CustomEvent('authStateChanged'));
+    },
+
+    async signOut() {
+        console.log('AuthManager: signOut called');
+        if (window.MP?.active && window.leaveOnlineRoom) {
+            try { window.leaveOnlineRoom(); } catch (_) {}
+        }
+        await client.auth.signOut();
+        this._cachedUser = null;
+        this._isGuest = false;
+        sessionStorage.removeItem('switch_guest_mode');
+        updateSidebarAuthUI(null);
+        if (window.game) {
+            window.game.loadState();
+            window.game.updateUI();
+        }
+        document.dispatchEvent(new CustomEvent('authStateChanged'));
+    },
+
+    async saveState(state) {
+        localStorage.setItem('switch_tournament_state', JSON.stringify(state));
+        if (this._cachedUser) {
+            await saveStateToSupabase(this._cachedUser.id, state);
+        }
+    }
+};
+window.AuthManager = AuthManager;
+
 // ── Database helpers ─────────────────────────────────────────────────────────
 
 async function saveStateToSupabase(userId, state) {
@@ -85,27 +257,21 @@ function updateSidebarAuthUI(user) {
 
 client.auth.onAuthStateChange(async (event, session) => {
     const user = session?.user ?? null;
-    AuthManager._cachedUser = user; // Ensure cache is sync
+    console.log('AuthManager: onAuthStateChange', event, user?.email);
+    AuthManager._cachedUser = user;
     updateSidebarAuthUI(user);
 
-    // After a successful OAuth sign-in, scrub the auth params out of the URL
-    // so a page refresh doesn't re-process the same callback (and so
-    // detectFailedOAuthCallback doesn't confuse itself on subsequent loads).
     if (event === 'SIGNED_IN') {
         try {
             const url = window.location.origin + window.location.pathname;
             window.history.replaceState({}, document.title, url);
         } catch (_) {}
-        // Clear guest mode when they've properly signed in
         sessionStorage.removeItem('switch_guest_mode');
         AuthManager._isGuest = false;
-        // Close modal if open and refresh UI
         try { AuthManager.closeModal(); } catch (_) {}
         document.dispatchEvent(new CustomEvent('authStateChanged'));
     }
 
-    // Surface auth events to the page so the user can see what's happening
-    // without needing devtools. This is invaluable when OAuth silently fails.
     try {
         const banner = document.getElementById('auth-status-banner');
         if (banner) {
@@ -124,7 +290,6 @@ client.auth.onAuthStateChange(async (event, session) => {
     const remoteState = await loadStateFromSupabase(user.id);
     if (!remoteState) return;
 
-    // Check for conflicts with local state
     const localSaved = localStorage.getItem('switch_tournament_state');
     const localState = localSaved ? JSON.parse(localSaved) : null;
 
@@ -137,13 +302,14 @@ client.auth.onAuthStateChange(async (event, session) => {
             if (window.game) {
                 window.game.applyState(remoteState);
                 window.game.updateUI();
-                // Update local storage backup immediately
                 localStorage.setItem('switch_tournament_state', JSON.stringify(remoteState));
             } else {
                 window._pendingRemoteState = remoteState;
             }
         }
     }
+    // Always notify UI of state changes
+    document.dispatchEvent(new CustomEvent('authStateChanged'));
 });
 
 // ── Modal helpers ────────────────────────────────────────────────────────────
@@ -173,192 +339,7 @@ function friendlyError(message) {
     return 'Something went wrong. Please try again.';
 }
 
-// ── AuthManager (public API) ─────────────────────────────────────────────────
-
-const AuthManager = {
-    _isRegisterMode: false,
-    _isGuest: false,
-
-    // isGuest is now defined below continueAsGuest with sessionStorage hydration
-
-    continueAsGuest() {
-        this._isGuest = true;
-        sessionStorage.setItem('switch_guest_mode', '1');
-        this.closeModal();
-        // SetupUI may not be ready yet — dispatch a custom event instead
-        document.dispatchEvent(new CustomEvent('authStateChanged'));
-    },
-
-    // Returns true if the user previously chose guest mode this session
-    get isGuest() {
-        if (this._isGuest) return true;
-        // Re-hydrate from sessionStorage (survives OAuth redirect back)
-        if (sessionStorage.getItem('switch_guest_mode') === '1') {
-            this._isGuest = true;
-            return true;
-        }
-        return false;
-    },
-
-    get currentUser() {
-        // Synchronous access via cached session
-        return this._cachedUser ?? null;
-    },
-
-    openModal() {
-        this._isRegisterMode = false;
-        this._refreshModalUI();
-        clearAuthError();
-        document.getElementById('auth-email').value = '';
-        document.getElementById('auth-password').value = '';
-        document.getElementById('auth-overlay').classList.remove('hidden');
-        document.body.classList.add('no-scroll');
-        setTimeout(() => document.getElementById('auth-email').focus(), 100);
-    },
-
-    closeModal() {
-        document.getElementById('auth-overlay').classList.add('hidden');
-        document.body.classList.remove('no-scroll');
-    },
-
-    toggleMode() {
-        this._isRegisterMode = !this._isRegisterMode;
-        this._refreshModalUI();
-        clearAuthError();
-    },
-
-    _refreshModalUI() {
-        const isReg = this._isRegisterMode;
-        document.getElementById('auth-modal-title').textContent = isReg ? 'Create Account' : 'Sign In';
-        document.getElementById('auth-submit-btn').textContent = isReg ? 'Register' : 'Sign In';
-        document.getElementById('auth-toggle-text').textContent = isReg ? 'Already have an account?' : "Don't have an account?";
-        document.getElementById('auth-toggle-btn').textContent = isReg ? 'Sign In' : 'Register';
-    },
-
-    async handleSubmit() {
-        clearAuthError();
-        const email = document.getElementById('auth-email').value.trim();
-        const password = document.getElementById('auth-password').value;
-        const submitBtn = document.getElementById('auth-submit-btn');
-
-        if (!email || !password) {
-            showAuthError('Please enter your email and password.');
-            return;
-        }
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Please wait…';
-
-        try {
-            if (this._isRegisterMode) {
-                const { data, error } = await client.auth.signUp({ email, password });
-                if (error) { showAuthError(friendlyError(error.message)); return; }
-                // If the project requires email confirmation, signUp succeeds but
-                // returns NO session. Do NOT mark the user as signed in — they need
-                // to click the link in their inbox first.
-                if (!data.session) {
-                    showAuthError(
-                        `Account created. Check ${email} for a confirmation link, click it, then come back here and sign in.`
-                    );
-                    return;
-                }
-                this._cachedUser = data.user;
-                // Upload current local state so new account keeps existing progress
-                if (window.game && data.user) {
-                    await saveStateToSupabase(data.user.id, window.game.getState());
-                }
-            } else {
-                const { data, error } = await client.auth.signInWithPassword({ email, password });
-                if (error) { showAuthError(friendlyError(error.message)); return; }
-                this._cachedUser = data.user;
-                // onAuthStateChange fires next and loads remote state into the game
-            }
-            this.closeModal();
-        } catch (err) {
-            showAuthError(friendlyError(err.message));
-        } finally {
-            submitBtn.disabled = false;
-            this._refreshModalUI();
-        }
-    },
-
-    async signInWithGoogle() {
-        // Use a clean URL (no hash, no query) so it matches Supabase's allow-list
-        // exactly — leaving #join or ?code=... in the redirectTo causes Supabase
-        // to reject the callback when the URL doesn't precisely match an entry.
-        const cleanReturnUrl = window.location.origin + window.location.pathname;
-        const { error } = await client.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: cleanReturnUrl }
-        });
-        if (error) showAuthError(friendlyError(error.message));
-    },
-
-    // Wipe any stuck/stale Supabase auth state from localStorage so the next
-    // sign-in attempt starts completely fresh. Useful when an earlier OAuth
-    // attempt left behind a partial session that's blocking new sign-ins.
-    async resetAuthState() {
-        try { await client.auth.signOut({ scope: 'local' }); } catch (_) {}
-        // Supabase persists auth under sb-<projectRef>-auth-token. Clear ALL
-        // sb-* keys to be safe.
-        try {
-            const keys = Object.keys(localStorage);
-            for (const k of keys) {
-                if (k.startsWith('sb-') || k.startsWith('supabase.')) localStorage.removeItem(k);
-            }
-        } catch (_) {}
-        try {
-            const keys = Object.keys(sessionStorage);
-            for (const k of keys) {
-                if (k.startsWith('sb-') || k.startsWith('supabase.')) sessionStorage.removeItem(k);
-            }
-        } catch (_) {}
-        this._cachedUser = null;
-        updateSidebarAuthUI(null);
-        showAuthError('Auth state cleared. Try signing in again.');
-        document.dispatchEvent(new CustomEvent('authStateChanged'));
-    },
-
-    async signOut() {
-        // If we're inside a multiplayer room, disconnect and return to setup
-        // before clearing auth — otherwise the user is left stranded on the
-        // game board with no way back.
-        if (window.MP?.active && window.leaveOnlineRoom) {
-            try { window.leaveOnlineRoom(); } catch (_) {}
-        }
-        await client.auth.signOut();
-        this._cachedUser = null;
-        this._isGuest = false;
-        sessionStorage.removeItem('switch_guest_mode');
-        updateSidebarAuthUI(null);
-        if (window.game) {
-            window.game.loadState();
-            window.game.updateUI();
-        }
-        // Signal screens to re-evaluate (landing vs setup)
-        document.dispatchEvent(new CustomEvent('authStateChanged'));
-    },
-
-    // Called by game.js saveState() — writes to Supabase AND localStorage
-    async saveState(state) {
-        localStorage.setItem('switch_tournament_state', JSON.stringify(state));
-        if (this._cachedUser) {
-            await saveStateToSupabase(this._cachedUser.id, state);
-        }
-    },
-
-    _cachedUser: null,
-};
-
-// Keep _cachedUser in sync with auth state
-client.auth.getSession().then(({ data: { session } }) => {
-    AuthManager._cachedUser = session?.user ?? null;
-});
-
-// Detect when we landed back from an OAuth provider (URL contains code= or
-// access_token=) but no session was established within a reasonable window.
-// That's the classic "Brave blocked the callback cookie" failure. Show a
-// visible error pointing the user at the recovery options.
+// Detect when we landed back from an OAuth provider
 (function detectFailedOAuthCallback() {
     const search = window.location.search || '';
     const hash = window.location.hash || '';
@@ -373,7 +354,6 @@ client.auth.getSession().then(({ data: { session } }) => {
         banner.classList.remove('hidden');
     }
 
-    // Wait up to 6s for SIGNED_IN. If it never fires, the callback failed.
     let resolved = false;
     const sub = client.auth.onAuthStateChange((event) => {
         if (event === 'SIGNED_IN') resolved = true;
@@ -382,14 +362,11 @@ client.auth.getSession().then(({ data: { session } }) => {
         try { sub?.data?.subscription?.unsubscribe?.(); } catch (_) {}
         if (resolved) return;
         if (!banner) return;
-        // Pull the error param if present so the user sees the real reason.
         const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
         const errParam = params.get('error_description') || params.get('error') || '';
         banner.textContent = errParam
-            ? `OAuth callback failed: ${errParam}. Tap "Stuck? Reset auth state" in the sign-in modal and try again, or use email/password.`
-            : `OAuth completed but no session was created — likely browser blocked the auth cookie (Brave Shields, third-party cookie blocking, etc.). Tap "Stuck? Reset auth state" and try email/password instead.`;
+            ? `OAuth callback failed: ${errParam}. Tap "Stuck? Reset auth state" and try again.`
+            : `OAuth completed but no session was created. Tap "Stuck? Reset auth state" and try email/password instead.`;
         banner.classList.remove('hidden');
     }, 6000);
 })();
-
-window.AuthManager = AuthManager;
