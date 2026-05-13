@@ -142,7 +142,15 @@ const AuthManager = {
 
     async signInWithGoogle() {
         console.log('AuthManager: signInWithGoogle called');
-        const cleanReturnUrl = window.location.origin + window.location.pathname;
+        // Use the current URL minus any hashes/queries to ensure it matches allowed redirects.
+        // On localhost, if you are redirected to production, ensure http://localhost:8000/** 
+        // is added to your Supabase Redirect URLs.
+        const cleanReturnUrl = window.location.href.split('#')[0].split('?')[0];
+        
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.warn('OAuth on localhost: ensure ' + cleanReturnUrl + ' is in your Supabase Allowed Redirect URLs.');
+        }
+
         const { error } = await client.auth.signInWithOAuth({
             provider: 'google',
             options: { 

@@ -219,8 +219,7 @@
         if (error) throw new Error(error.message);
 
         // Build the initial dealt state and write it via commit_turn (turn_seq = 0 → 1).
-        const seatsRow = await listSeats(code);
-        const room = await getRoom(code);
+        const [seatsRow, room] = await Promise.all([listSeats(code), getRoom(code)]);
         const numSeats = seatsRow.length;
         const numDecks = Math.max(1, Math.ceil(numSeats / 7));
         const rngSeed = ((Math.random() * 0x7fffffff) | 0) || 1;
