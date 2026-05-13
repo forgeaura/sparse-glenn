@@ -269,8 +269,8 @@
                     displayName: window.AuthManager.currentUser.email?.split('@')[0] || 'Player',
                 }),
                 new Promise((_, reject) => setTimeout(
-                    () => reject(new Error('timeout: Supabase RPC took >15s — schema cache stale or function missing?')),
-                    15000)),
+                    () => reject(new Error('timeout: Supabase RPC took >30s — schema cache stale or function missing?')),
+                    30000)),
             ]);
             createCode = code;
             mySeatIndex = 0;
@@ -319,7 +319,7 @@
         try {
             await Promise.race([
                 window.MP.addAISeat(code),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('add_ai_seat timed out after 15s')), 15000)),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('add_ai_seat timed out after 30s')), 30000)),
             ]);
             await refreshLobbySeats();
         } catch (e) {
@@ -356,7 +356,7 @@
                     code,
                     displayName: window.AuthManager.currentUser.email?.split('@')[0] || 'Player',
                 }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('join_room timed out after 15s')), 15000)),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('join_room timed out after 30s')), 30000)),
             ]);
             $('setup-join-pending')?.classList.add('hidden');
             if (pendingPollHandle) { clearInterval(pendingPollHandle); pendingPollHandle = null; }
@@ -368,7 +368,7 @@
             if (room.status === 'playing') {
                 await Promise.race([
                     window.MP.enterRoom(code, seatIndex),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('enterRoom timed out after 15s')), 15000)),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('enterRoom timed out after 30s')), 30000)),
                 ]);
                 return;
             }
@@ -408,6 +408,10 @@
             showError(`Couldn't find your seat in room ${code}. Try Leave then Open from My Rooms.`);
             return;
         }
+
+        // Pause the lobby poller while the transition is in flight to reduce network noise.
+        if (pollHandle) { clearInterval(pollHandle); pollHandle = null; }
+
         const buttons = ['setup-start-game', 'setup-join-start']
             .map(id => document.getElementById(id))
             .filter(Boolean);
@@ -415,15 +419,18 @@
         try {
             await Promise.race([
                 window.MP.startRoom(code),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('start_room timed out after 15s')), 15000)),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('start_room timed out after 30s')), 30000)),
             ]);
-            if (pollHandle) { clearInterval(pollHandle); pollHandle = null; }
             await Promise.race([
                 window.MP.enterRoom(code, mySeatIndex),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('enterRoom timed out after 15s — could not load room/seats/game_state')), 15000)),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('enterRoom timed out after 30s — could not load room/seats/game_state')), 30000)),
             ]);
         } catch (e) {
             showError(`Could not start room ${code}: ${e?.message || e}`);
+            // If starting failed, resume lobby polling so the UI stays alive.
+            if (!pollHandle && (createCode || joinCode)) {
+                pollHandle = setInterval(refreshLobbySeats, 3000);
+            }
         } finally {
             buttons.forEach(b => { b.disabled = false; if (b.dataset.origText) b.textContent = b.dataset.origText; });
         }
