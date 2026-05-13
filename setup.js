@@ -269,6 +269,8 @@
         const joinPolicy = document.querySelector('input[name="join-policy"]:checked')?.value || 'open';
         const name       = ($('setup-room-name')?.value || '').trim() || null;
         $('setup-room-code').textContent = '…';
+        const retryBtn = $('setup-retry-create');
+        if (retryBtn) retryBtn.classList.add('hidden');
         try {
             // 15s overall timeout so a hung request becomes a visible error.
             const code = await Promise.race([
@@ -290,6 +292,8 @@
             pollHandle = setInterval(refreshLobbySeats, 3000);
         } catch (e) {
             $('setup-room-code').textContent = '—';
+            const retryBtn = $('setup-retry-create');
+            if (retryBtn) retryBtn.classList.remove('hidden');
             // If the user has navigated away from the create tab, the error no
             // longer matches the screen they're on — suppress it instead of
             // hijacking another tab's error banner.
@@ -619,6 +623,8 @@
         $('setup-add-ai').onclick = onAddAI;
         $('setup-join-add-ai').onclick = onAddAI;
         $('setup-copy-code').onclick = copyRoomCode;
+        const retryCreateBtn = $('setup-retry-create');
+        if (retryCreateBtn) retryCreateBtn.onclick = () => { createAttempted = false; onCreate(); };
         $('setup-join-btn').onclick = onJoin;
         $('setup-join-start').onclick = onStart;
         $('setup-start-game').onclick = onStart;
