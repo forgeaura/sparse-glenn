@@ -144,6 +144,14 @@
         if (!code) return;
         try {
             const seats = await window.MP.listSeats(code);
+            const myId = window.AuthManager?.currentUser?.id;
+            const me = seats.find(s => s.user_id === myId);
+            if (me) {
+                mySeatIndex = me.seat_index;
+                const startBtn = createCode ? $('setup-start-game') : $('setup-join-start');
+                if (startBtn) startBtn.disabled = false;
+            }
+
             const target = createCode ? 'seat-list' : 'setup-join-seat-list';
             renderSeatList(target, seats, {
                 onRemove: async (seatIndex) => {
@@ -527,10 +535,18 @@
             // Treat "open" the same as joining the lobby — go through join_room (idempotent for members).
             joinCode = code;
             createCode = null;
+            mySeatIndex = null; // Clear old seat until confirmed
+
+            // Disable join-start button until attemptJoin confirms seat
+            const joinStartBtn = $('setup-join-start');
+            if (joinStartBtn) joinStartBtn.disabled = true;
+
+            await attemptJoin(code);
+
+            // Only show the lobby once we have successfully joined/resumed
             $('setup-join-lobby').classList.remove('hidden');
             activateTab('join');
             $('setup-join-code').value = code;
-            await attemptJoin(code);
         } catch (e) {
             showError(`Could not open ${code}: ${e?.message || e}`);
         } finally {
@@ -581,6 +597,8 @@
 
         const startBtn = $('setup-start-game');
         if (startBtn) startBtn.disabled = true;
+        const joinStartBtn = $('setup-join-start');
+        if (joinStartBtn) joinStartBtn.disabled = true;
 
         document.querySelectorAll('.setup-tab').forEach(b => {
             b.onclick = () => {
