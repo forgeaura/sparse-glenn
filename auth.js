@@ -16,6 +16,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_DBHsEayqtgagTjrsm9nk-w_WpcYb3OU';
 // in the hash and supabase-js parses it client-side.
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
+        flowType: 'implicit',
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
@@ -170,6 +171,10 @@ const AuthManager = {
     async resetAuthState() {
         console.log('AuthManager: resetAuthState called');
         try { await client.auth.signOut({ scope: 'local' }); } catch (_) {}
+        try {
+            const cleanUrl = window.location.href.split('#')[0];
+            window.history.replaceState({}, document.title, cleanUrl);
+        } catch (_) {}
         try {
             const keys = Object.keys(localStorage);
             for (const k of keys) {
