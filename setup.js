@@ -264,53 +264,72 @@
             createInFlight = false;
             return;
         }
+
         const dropPolicy = document.querySelector('input[name="drop-policy"]:checked')?.value || 'convert';
         const kind       = document.querySelector('input[name="room-kind"]:checked')?.value || 'one_off';
         const joinPolicy = document.querySelector('input[name="join-policy"]:checked')?.value || 'open';
         const name       = ($('setup-room-name')?.value || '').trim() || null;
+        
         $('setup-room-code').textContent = '…';
-        try {
-            // 15s overall timeout so a hung request becomes a visible error.
-            const code = await Promise.race([
-                window.MP.createRoom({
-                    dropPolicy, kind, joinPolicy, name,
-                    displayName: window.AuthManager.currentUser.email?.split('@')[0] || 'Player',
-                }),
-                new Promise((_, reject) => setTimeout(
-                    () => reject(new Error('timeout: Supabase RPC took >30s — schema cache stale or function missing?')),
-                    30000)),
-            ]);
-            createCode = code;
-            mySeatIndex = 0;
-            $('setup-room-code').textContent = code;
-            const startBtn = $('setup-start-game');
-            if (startBtn) startBtn.disabled = false;
-            await refreshLobbySeats();
-            if (pollHandle) clearInterval(pollHandle);
-            pollHandle = setInterval(refreshLobbySeats, 3000);
-        } catch (e) {
-            $('setup-room-code').textContent = '—';
-            // If the user has navigated away from the create tab, the error no
-            // longer matches the screen they're on — suppress it instead of
-            // hijacking another tab's error banner.
-            if (activeTabName !== 'create') {
-                console.warn('createRoom failed but user switched tabs:', e?.message);
+        const retryBtn = $('setup-retry-create');
+        if (retryBtn) retryBtn.classList.add('hidden');
+
+        let lastError = null;
+        
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                // 15s overall timeout so a hung request becomes a visible error.
+                const code = await Promise.race([
+                    window.MP.createRoom({
+                        dropPolicy, kind, joinPolicy, name,
+                        displayName: window.AuthManager.currentUser.email?.split('@')[0] || 'Player',
+                    }),
+                    new Promise((_, reject) => setTimeout(
+                        () => reject(new Error('timeout: Supabase RPC took >15s — retrying')),
+                        15000)),
+                ]);
+                createCode = code;
+                mySeatIndex = 0;
+                $('setup-room-code').textContent = code;
+                const startBtn = $('setup-start-game');
+                if (startBtn) startBtn.disabled = false;
+                await refreshLobbySeats();
+                if (pollHandle) clearInterval(pollHandle);
+                pollHandle = setInterval(refreshLobbySeats, 3000);
                 createInFlight = false;
-                return;
+                return; // Success!
+            } catch (e) {
+                lastError = e;
+                console.warn(`[MP] createRoom attempt ${attempt} failed:`, e);
+                // If it's an auth error, abort retries immediately
+                if (/auth required|JWT|not authenticated/i.test(e?.message || '')) break;
+                // Wait before retrying
+                if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt));
             }
-            const detail = e?.message || JSON.stringify(e);
-            if (/auth required|JWT|not authenticated/i.test(detail)) {
-                showError(
-                    `Sign-in didn't complete properly (server says ${detail}). ` +
-                    `This often happens with Google sign-in in incognito because of third-party cookies. ` +
-                    `Click "Sign Out" then sign in again with email/password.`
-                );
-            } else {
-                showError(`Could not create room: ${detail}. (Did you run migrations 001+002 and reload the PostgREST schema?)`);
-            }
-        } finally {
-            createInFlight = false;
         }
+
+        // If we exhausted all retries
+        $('setup-room-code').textContent = '—';
+        
+        // If the user has navigated away from the create tab, the error no
+        // longer matches the screen they're on — suppress it instead of
+        // hijacking another tab's error banner.
+        if (activeTabName !== 'create') {
+            console.warn('createRoom failed but user switched tabs:', lastError?.message);
+            createInFlight = false;
+            return;
+        }
+        const detail = lastError?.message || JSON.stringify(lastError);
+        if (/auth required|JWT|not authenticated/i.test(detail)) {
+            showError(
+                `Sign-in didn't complete properly (server says ${detail}). ` +
+                `This often happens with Google sign-in in incognito because of third-party cookies. ` +
+                `Click "Sign Out" then sign in again with email/password.`
+            );
+        } else {
+            showError(`Could not create room after 3 attempts: ${detail}. (Check console for details)`);
+        }
+        createInFlight = false;
     }
 
     async function onAddAI() {

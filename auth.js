@@ -17,7 +17,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_DBHsEayqtgagTjrsm9nk-w_WpcYb3OU';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
         flowType: 'implicit',
-        autoRefreshToken: true,
+        autoRefreshToken: false,
         persistSession: true,
         detectSessionInUrl: true,
         storage: window.localStorage,
