@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Switch Card Game</title>
-    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="style.css?v=23">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -18,9 +18,27 @@
         <!-- Auth status banner — surfaces auth state changes for debugging -->
         <div id="auth-status-banner" class="auth-status-banner hidden"></div>
 
+        <!-- Landing screen: Entry point for new/unauthenticated users -->
+        <div id="landing-screen" class="landing-screen">
+            <div class="landing-card glass">
+                <h1 class="landing-title">Switch</h1>
+                <p class="landing-subtitle">The ultimate card game experience. Play solo or with friends.</p>
+                <div class="landing-actions">
+                    <button class="btn btn-large" onclick="AuthManager.openModal()">Sign In / Register</button>
+                    <button class="btn btn-outline btn-large" onclick="AuthManager.continueAsGuest()">Continue as Guest</button>
+                </div>
+                <p class="landing-hint">Sign in to save your lifetime stats and create multiplayer rooms.</p>
+            </div>
+        </div>
+
         <!-- Setup screen: Solo / Create Room / Join Room -->
-        <div id="setup-screen" class="setup-screen">
+        <div id="setup-screen" class="setup-screen hidden">
             <div class="setup-card glass">
+                <div id="setup-user-bar" class="setup-user-bar">
+                    <span id="setup-user-info"></span>
+                    <button id="setup-signout-btn" class="btn btn-small btn-outline hidden" onclick="AuthManager.signOut()">Sign Out</button>
+                    <button id="setup-signin-btn" class="btn btn-small btn-outline hidden" onclick="AuthManager.openModal()">Sign In</button>
+                </div>
                 <h1 class="setup-title">Switch</h1>
                 <p class="setup-subtitle">Play solo against AI, or invite friends online.</p>
 
@@ -37,13 +55,15 @@
                     <button class="btn" id="setup-solo-start">Start Solo Game</button>
                 </div>
 
-                <!-- My Rooms tab -->
                 <div class="setup-pane hidden" data-pane="mine">
-                    <div id="setup-auth-required-mine" class="setup-auth-banner hidden">
-                        <p>Sign in to see your saved rooms and lifetime score.</p>
-                        <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                    <!-- Auth gate for guests -->
+                    <div id="setup-auth-required-mine" class="setup-auth-gate hidden">
+                        <div class="setup-auth-gate-icon">🔒</div>
+                        <p class="setup-auth-gate-title">Sign in to see My Rooms</p>
+                        <p class="setup-auth-gate-desc">Create an account to save your multiplayer rooms, track lifetime stats, and play across devices.</p>
+                        <button class="btn" onclick="AuthManager.openModal()" id="gate-signin-mine">Sign In / Create Account</button>
                     </div>
-                    <div id="setup-mine-content" class="hidden">
+                    <div id="setup-mine-content">
                         <div id="setup-lifetime-stats" class="lifetime-stats"></div>
                         <p class="setup-hint">Rooms you've joined. Click a room to resume.</p>
                         <div id="setup-my-rooms" class="my-rooms"></div>
@@ -51,11 +71,13 @@
                     </div>
                 </div>
 
-                <!-- Create tab -->
                 <div class="setup-pane hidden" data-pane="create">
-                    <div id="setup-auth-required" class="setup-auth-banner hidden">
-                        <p>Sign in to create a multiplayer room.</p>
-                        <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                    <!-- Auth gate for guests -->
+                    <div id="setup-auth-required" class="setup-auth-gate hidden">
+                        <div class="setup-auth-gate-icon">🎮</div>
+                        <p class="setup-auth-gate-title">Sign in to Create a Room</p>
+                        <p class="setup-auth-gate-desc">Multiplayer rooms require an account so your friends can find you and your scores can be saved.</p>
+                        <button class="btn" onclick="AuthManager.openModal()" id="gate-signin-create">Sign In / Create Account</button>
                     </div>
                     <div id="setup-create-form">
                         <div class="setup-field">
@@ -108,11 +130,13 @@
                     </div>
                 </div>
 
-                <!-- Join tab -->
                 <div class="setup-pane hidden" data-pane="join">
-                    <div id="setup-auth-required-join" class="setup-auth-banner hidden">
-                        <p>Sign in to join a multiplayer room.</p>
-                        <button class="btn btn-small" onclick="AuthManager.openModal()">Sign In / Register</button>
+                    <!-- Auth gate for guests -->
+                    <div id="setup-auth-required-join" class="setup-auth-gate hidden">
+                        <div class="setup-auth-gate-icon">🤝</div>
+                        <p class="setup-auth-gate-title">Sign in to Join a Room</p>
+                        <p class="setup-auth-gate-desc">You need an account to join multiplayer rooms so the host knows who you are.</p>
+                        <button class="btn" onclick="AuthManager.openModal()" id="gate-signin-join">Sign In / Create Account</button>
                     </div>
                     <div id="setup-join-form">
                         <div class="setup-field">
@@ -300,16 +324,16 @@
                     <span id="auth-toggle-text">Don't have an account?</span>
                     <button class="btn btn-outline btn-small" id="auth-toggle-btn" onclick="AuthManager.toggleMode()">Register</button>
                 </div>
-                <button class="btn btn-outline btn-small" onclick="AuthManager.closeModal()" style="margin-top:1rem">Play as Guest</button>
+                <button class="btn btn-outline btn-small" onclick="AuthManager.continueAsGuest()" style="margin-top:1rem">Play as Guest</button>
                 <button class="btn btn-outline btn-small" onclick="AuthManager.resetAuthState()" style="margin-top:0.5rem;font-size:0.75rem;opacity:0.7" title="Clears any stuck/stale Supabase auth from local storage">Stuck? Reset auth state</button>
             </div>
         </div>
 
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="auth.js?v=22"></script>
-    <script src="game.js?v=22"></script>
-    <script src="multiplayer.js?v=22"></script>
-    <script src="setup.js?v=22"></script>
+    <script src="auth.js?v=23"></script>
+    <script src="game.js?v=23"></script>
+    <script src="multiplayer.js?v=23"></script>
+    <script src="setup.js?v=23"></script>
 </body>
 </html>

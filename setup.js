@@ -32,7 +32,16 @@
     });
 
     function showSetup() {
-        $('setup-screen')?.classList.remove('hidden');
+        const user = window.AuthManager?.currentUser;
+        const isGuest = window.AuthManager?.isGuest;
+
+        if (!user && !isGuest) {
+            $('landing-screen')?.classList.remove('hidden');
+            $('setup-screen')?.classList.add('hidden');
+        } else {
+            $('landing-screen')?.classList.add('hidden');
+            $('setup-screen')?.classList.remove('hidden');
+        }
         $('game-board')?.classList.add('hidden');
     }
 
@@ -57,13 +66,37 @@
     }
 
     function refreshAuthBanners() {
-        const signedIn = !!window.AuthManager?.currentUser;
-        $('setup-auth-required')?.classList.toggle('hidden', signedIn);
-        $('setup-create-form')?.classList.toggle('hidden', !signedIn);
-        $('setup-auth-required-join')?.classList.toggle('hidden', signedIn);
-        $('setup-join-form')?.classList.toggle('hidden', !signedIn);
-        $('setup-auth-required-mine')?.classList.toggle('hidden', signedIn);
-        $('setup-mine-content')?.classList.toggle('hidden', !signedIn);
+        const user = window.AuthManager?.currentUser;
+        const isGuest = window.AuthManager?.isGuest;
+        const signedIn = !!user;
+
+        // ── User bar (top of setup card) ────────────────────────────────────
+        const userInfo = $('setup-user-info');
+        const signoutBtn = $('setup-signout-btn');
+        const signinBtn = $('setup-signin-btn');
+
+        if (signedIn) {
+            if (userInfo) userInfo.textContent = user.email;
+            signoutBtn?.classList.remove('hidden');
+            signinBtn?.classList.add('hidden');
+        } else {
+            if (userInfo) userInfo.textContent = isGuest ? 'Playing as Guest' : '';
+            signoutBtn?.classList.add('hidden');
+            // Show "Sign In" button only when in guest mode (not on landing screen)
+            signinBtn?.classList.toggle('hidden', !isGuest);
+        }
+
+        // ── Multiplayer tab auth gates ────────────────────────────────────────
+        // Show gate + hide form when guest; hide gate + show form when signed in.
+        const tabs = [
+            { gate: 'setup-auth-required-mine',  form: 'setup-mine-content'  },
+            { gate: 'setup-auth-required',        form: 'setup-create-form'   },
+            { gate: 'setup-auth-required-join',   form: 'setup-join-form'     },
+        ];
+        for (const { gate, form } of tabs) {
+            $(gate)?.classList.toggle('hidden', signedIn);
+            $(form)?.classList.toggle('hidden', !signedIn);
+        }
     }
 
     function renderSeatList(containerId, seats, opts = {}) {
@@ -529,7 +562,16 @@
     }
 
     function init() {
+        // Determine which screen to show first
+        showSetup();
         refreshAuthBanners();
+
+        // React to sign-in / sign-out / continueAsGuest events
+        document.addEventListener('authStateChanged', () => {
+            showSetup();
+            refreshAuthBanners();
+        });
+
         const startBtn = $('setup-start-game');
         if (startBtn) startBtn.disabled = true;
 
@@ -579,6 +621,8 @@
         };
 
         setInterval(() => {
+            // Only refresh the user-bar text + auto-create logic.
+            // Do NOT call showSetup() here — it would fight the user's navigation.
             refreshAuthBanners();
             maybeAutoCreate();
         }, 1000);

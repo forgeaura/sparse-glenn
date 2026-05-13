@@ -96,6 +96,12 @@ client.auth.onAuthStateChange(async (event, session) => {
             const url = window.location.origin + window.location.pathname;
             window.history.replaceState({}, document.title, url);
         } catch (_) {}
+        // Clear guest mode when they've properly signed in
+        sessionStorage.removeItem('switch_guest_mode');
+        AuthManager._isGuest = false;
+        // Close modal if open and refresh UI
+        try { AuthManager.closeModal(); } catch (_) {}
+        document.dispatchEvent(new CustomEvent('authStateChanged'));
     }
 
     // Surface auth events to the page so the user can see what's happening
@@ -171,6 +177,28 @@ function friendlyError(message) {
 
 const AuthManager = {
     _isRegisterMode: false,
+    _isGuest: false,
+
+    // isGuest is now defined below continueAsGuest with sessionStorage hydration
+
+    continueAsGuest() {
+        this._isGuest = true;
+        sessionStorage.setItem('switch_guest_mode', '1');
+        this.closeModal();
+        // SetupUI may not be ready yet — dispatch a custom event instead
+        document.dispatchEvent(new CustomEvent('authStateChanged'));
+    },
+
+    // Returns true if the user previously chose guest mode this session
+    get isGuest() {
+        if (this._isGuest) return true;
+        // Re-hydrate from sessionStorage (survives OAuth redirect back)
+        if (sessionStorage.getItem('switch_guest_mode') === '1') {
+            this._isGuest = true;
+            return true;
+        }
+        return false;
+    },
 
     get currentUser() {
         // Synchronous access via cached session
@@ -288,6 +316,7 @@ const AuthManager = {
         this._cachedUser = null;
         updateSidebarAuthUI(null);
         showAuthError('Auth state cleared. Try signing in again.');
+        document.dispatchEvent(new CustomEvent('authStateChanged'));
     },
 
     async signOut() {
@@ -299,11 +328,15 @@ const AuthManager = {
         }
         await client.auth.signOut();
         this._cachedUser = null;
+        this._isGuest = false;
+        sessionStorage.removeItem('switch_guest_mode');
         updateSidebarAuthUI(null);
         if (window.game) {
             window.game.loadState();
             window.game.updateUI();
         }
+        // Signal screens to re-evaluate (landing vs setup)
+        document.dispatchEvent(new CustomEvent('authStateChanged'));
     },
 
     // Called by game.js saveState() — writes to Supabase AND localStorage

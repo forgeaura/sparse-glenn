@@ -835,12 +835,17 @@ function showGameBoard() {
 }
 
 function showSetupScreen() {
-    const setup = document.getElementById('setup-screen');
-    if (setup) setup.classList.remove('hidden');
     const board = document.getElementById('game-board');
     if (board) board.classList.add('hidden');
     const bar = document.getElementById('online-room-bar');
     if (bar) bar.classList.add('hidden');
+    // Delegate to SetupUI which handles landing vs setup routing
+    if (window.SetupUI?.show) {
+        window.SetupUI.show();
+    } else {
+        const setup = document.getElementById('setup-screen');
+        if (setup) setup.classList.remove('hidden');
+    }
 }
 
 // Disconnect from the active multiplayer room and return to the setup screen.
