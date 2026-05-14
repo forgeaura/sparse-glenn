@@ -197,24 +197,47 @@ const AuthManager = {
 
     async signOut() {
         console.log('AuthManager: signOut called');
+        
+        // 1. Leave any active multiplayer room first
         if (window.MP?.active && window.leaveOnlineRoom) {
             try { window.leaveOnlineRoom(); } catch (_) {}
         }
+
+        // 2. Attempt server-side sign out (don't let it block local cleanup)
         try {
-            await client.auth.signOut();
+            // We use a timeout or just don't await it if we want it to be instant, 
+            // but for reliability we'll try it and catch all.
+            await client.auth.signOut().catch(err => {
+                console.warn('AuthManager: server sign out failed', err);
+                return client.auth.signOut({ scope: 'local' });
+            });
         } catch (err) {
-            console.warn('AuthManager: server sign out failed, clearing local state', err);
-            try { await client.auth.signOut({ scope: 'local' }); } catch (_) {}
+            console.error('AuthManager: signOut error', err);
+        } finally {
+            // 3. ALWAYS clear local state and update UI
+            this._cachedUser = null;
+            this._isGuest = false;
+            sessionStorage.removeItem('switch_guest_mode');
+            
+            if (typeof updateSidebarAuthUI === 'function') {
+                updateSidebarAuthUI(null);
+            }
+
+            if (window.game) {
+                try {
+                    window.game.loadState();
+                    window.game.updateUI();
+                } catch (_) {}
+            }
+
+            console.log('AuthManager: local state cleared, dispatching authStateChanged');
+            document.dispatchEvent(new CustomEvent('authStateChanged'));
+            
+            // Force a return to landing if we are on setup
+            if (window.SetupUI && window.SetupUI.show) {
+                window.SetupUI.show();
+            }
         }
-        this._cachedUser = null;
-        this._isGuest = false;
-        sessionStorage.removeItem('switch_guest_mode');
-        updateSidebarAuthUI(null);
-        if (window.game) {
-            window.game.loadState();
-            window.game.updateUI();
-        }
-        document.dispatchEvent(new CustomEvent('authStateChanged'));
     },
 
     async saveState(state) {

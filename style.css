@@ -1536,12 +1536,26 @@ body::after {
     gap: 12px;
     font-size: 0.85rem;
     z-index: 10;
+    max-width: calc(100% - 40px);
 }
 
 #setup-user-info {
     opacity: 0.8;
     color: var(--accent);
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.btn-danger {
+    border-color: var(--danger) !important;
+    color: var(--danger) !important;
+}
+.btn-danger:hover {
+    background: var(--danger) !important;
+    color: white !important;
 }
 
 /* ── Mobile Tweaks for Landing ───────────────────────────────────────────── */
