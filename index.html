@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Switch Card Game</title>
-    <link rel="stylesheet" href="style.css?v=23">
+    <link rel="stylesheet" href="style.css?v=25">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -216,6 +216,10 @@
                             <label for="highlight-toggle">Highlight Playable</label>
                             <input type="checkbox" id="highlight-toggle" checked onchange="toggleHighlight(this.checked)">
                         </div>
+                        <div class="setting-row">
+                            <label for="auto-sort-toggle">Auto-sort Hand</label>
+                            <input type="checkbox" id="auto-sort-toggle" onchange="toggleAutoSort(this.checked)">
+                        </div>
                         <button class="btn btn-small" onclick="showHowToPlay()">How to Play</button>
                         <button class="btn btn-small btn-outline" onclick="resetTournament()">Reset Tournament</button>
                     </div>
@@ -332,9 +336,9 @@
 
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="auth.js?v=24"></script>
-    <script src="game.js?v=24"></script>
-    <script src="multiplayer.js?v=24"></script>
-    <script src="setup.js?v=24"></script>
+    <script src="auth.js?v=25"></script>
+    <script src="game.js?v=25"></script>
+    <script src="multiplayer.js?v=25"></script>
+    <script src="setup.js?v=25"></script>
 </body>
 </html>

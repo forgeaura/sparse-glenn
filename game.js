@@ -344,6 +344,7 @@ class Game {
         this.computerTotalScore = 0;
         this.currentRound = 1;
         this.showPlayableHighlight = true;
+        this.autoSortHand = false;
 
         this.state = this._freshState(seats);
 
@@ -404,6 +405,7 @@ class Game {
             computerTotalScore: this.computerTotalScore,
             currentRound: this.currentRound,
             showPlayableHighlight: this.showPlayableHighlight,
+            autoSortHand: this.autoSortHand,
         };
     }
 
@@ -412,8 +414,13 @@ class Game {
         this.computerTotalScore = state.computerTotalScore || 0;
         this.currentRound = state.currentRound || 1;
         this.showPlayableHighlight = (state.showPlayableHighlight !== undefined) ? state.showPlayableHighlight : true;
-        const checkbox = document.getElementById('highlight-toggle');
-        if (checkbox) checkbox.checked = this.showPlayableHighlight;
+        this.autoSortHand = !!state.autoSortHand;
+
+        const highlightCheckbox = document.getElementById('highlight-toggle');
+        if (highlightCheckbox) highlightCheckbox.checked = this.showPlayableHighlight;
+
+        const sortCheckbox = document.getElementById('auto-sort-toggle');
+        if (sortCheckbox) sortCheckbox.checked = this.autoSortHand;
     }
 
     // Kept for compatibility with auth.js, which calls game.applyState(remoteState).
@@ -628,8 +635,27 @@ class Game {
         const playerHandEl = document.getElementById('player-hand');
         if (!playerHandEl) return;
         playerHandEl.innerHTML = '';
-        const myHand = s.hands[this.mySeat] || [];
+        let myHand = s.hands[this.mySeat] || [];
         const myTurn = s.currentSeat === this.mySeat && s.pendingSuitSeat == null && !s.gameOver && !s.paused;
+
+        if (this.autoSortHand) {
+            myHand = [...myHand].sort((a, b) => {
+                // Joker handling
+                if (a.rank === 'Joker' && b.rank !== 'Joker') return 1;
+                if (a.rank !== 'Joker' && b.rank === 'Joker') return -1;
+                if (a.rank === 'Joker' && b.rank === 'Joker') return 0;
+
+                // Suit sorting: Spades, Hearts, Diamonds, Clubs
+                const suitOrder = { 'spades': 0, 'hearts': 1, 'diamonds': 2, 'clubs': 3 };
+                if (suitOrder[a.suit] !== suitOrder[b.suit]) {
+                    return suitOrder[a.suit] - suitOrder[b.suit];
+                }
+
+                // Rank sorting: A, 2, 3... K
+                const rankOrder = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13 };
+                return rankOrder[a.rank] - rankOrder[b.rank];
+            });
+        }
 
         myHand.forEach((cardData, index) => {
             const card = Card.from(cardData);
@@ -864,7 +890,7 @@ window.leaveOnlineRoom = leaveOnlineRoom;
 
 function resetTournament() {
     if (confirm("Are you sure you want to reset the tournament? All scores will be lost.")) {
-        const blank = { playerTotalScore: 0, computerTotalScore: 0, currentRound: 1, showPlayableHighlight: true };
+        const blank = { playerTotalScore: 0, computerTotalScore: 0, currentRound: 1, showPlayableHighlight: true, autoSortHand: false };
         localStorage.removeItem('switch_tournament_state');
         if (window.AuthManager && AuthManager.currentUser) {
             AuthManager.saveState(blank);
@@ -876,6 +902,14 @@ function resetTournament() {
 function toggleHighlight(enabled) {
     if (game) {
         game.showPlayableHighlight = enabled;
+        game.saveState();
+        game.updateUI();
+    }
+}
+
+function toggleAutoSort(enabled) {
+    if (game) {
+        game.autoSortHand = enabled;
         game.saveState();
         game.updateUI();
     }
